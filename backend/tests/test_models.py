@@ -54,6 +54,7 @@ def test_settlement_insert_and_read(db_session):
 
 def test_bank_statement_insert(db_session):
     line = BankStatement(
+        line_id="bl_00001",
         txn_date="01-09-2026",
         value_date=None,
         description="NEFT-1597813219E1P-RAZORPAY SOFTWARE PVT LTD",
@@ -65,12 +66,12 @@ def test_bank_statement_insert(db_session):
     )
     db_session.add(line)
     db_session.flush()
-    assert line.line_id is not None
+    assert line.line_id == "bl_00001"
 
 
 def test_match_foreign_keys(db_session):
     s = Settlement(settlement_id="setl_x", net_amount=5000)
-    b = BankStatement(description="x", credit=50.0)
+    b = BankStatement(line_id="bl_00001", description="x", credit=50.0)
     db_session.add_all([s, b])
     db_session.flush()
 

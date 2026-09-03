@@ -33,7 +33,7 @@ class SettlementOut(ORMModel):
 
 # --- Bank statement ---
 class BankStatementOut(ORMModel):
-    line_id: int
+    line_id: str
     txn_date: Optional[str] = None
     value_date: Optional[str] = None
     description: Optional[str] = None
@@ -48,7 +48,7 @@ class BankStatementOut(ORMModel):
 class MatchOut(ORMModel):
     match_id: int
     settlement_id: str
-    line_id: int
+    line_id: str
     stage: str
     confidence: int
     resolved_at: datetime
@@ -60,7 +60,7 @@ class Candidate:
 
     __slots__ = ("settlement_id", "line_id", "score", "stage")
 
-    def __init__(self, settlement_id: str, line_id: int, score: float, stage: str):
+    def __init__(self, settlement_id: str, line_id: str, score: float, stage: str):
         self.settlement_id = settlement_id
         self.line_id = line_id
         self.score = score
@@ -78,7 +78,7 @@ class Candidate:
 class ExceptionOut(ORMModel):
     exception_id: int
     settlement_id: Optional[str] = None
-    line_id: Optional[int] = None
+    line_id: Optional[str] = None
     reason_code: str
     confidence: Optional[int] = None
     candidates_json: Optional[str] = None

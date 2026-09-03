@@ -46,11 +46,15 @@ class Settlement(Base):
 
 
 class BankStatement(Base):
-    """Messy bank-side record: one row per statement line."""
+    """Messy bank-side record: one row per statement line.
+
+    ``line_id`` is a stable String key assigned by the generator (e.g. ``bl_00001``)
+    so the hidden answer key can reference the same identifier as the matcher DB.
+    """
 
     __tablename__ = "bank_statement"
 
-    line_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    line_id: Mapped[str] = mapped_column(String, primary_key=True)
     txn_date: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     value_date: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -70,7 +74,7 @@ class Match(Base):
     settlement_id: Mapped[str] = mapped_column(
         ForeignKey("settlements.settlement_id"), nullable=False
     )
-    line_id: Mapped[int] = mapped_column(
+    line_id: Mapped[str] = mapped_column(
         ForeignKey("bank_statement.line_id"), nullable=False
     )
     stage: Mapped[str] = mapped_column(String, nullable=False)  # exact/fuzzy_utr/amount_date/batch_sum/llm_tiebreak
@@ -92,7 +96,7 @@ class Exception(Base):
 
     exception_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     settlement_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    line_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    line_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     reason_code: Mapped[str] = mapped_column(String, nullable=False)
     confidence: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     candidates_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
