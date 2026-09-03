@@ -14,7 +14,7 @@
 
 | Kind | Convention | Example |
 |---|---|---|
-| Python files | snake_case | `stage1_exact.py` |
+| Python files | snake_case | `exact_match.py`, `reconcile.py` |
 | Python functions/vars | snake_case | `match_utr(record)` |
 | Python classes | PascalCase | `MatchingPipeline` |
 | JS/React files & components | PascalCase | `ExceptionQueue.jsx` |

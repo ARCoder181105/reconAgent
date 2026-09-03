@@ -12,7 +12,7 @@ P0 ──> P1 ──> P2 ──> (P3 stretch)
 
 ## Phase P0 — Demoable Core (must exist for any demo)
 
-1. Data generator: `generate_settlements.py`, `generate_bank_statement.py`, `seed_config.py`, `answer_key.py`
+1. Data generator: `generate_settlements.py`, `generate_statement.py`, `seed_config.py`, `answer_key_generator.py`
 2. DB bootstrap: `db.py`, `models.py`, schema DDL (settlements, bank_statement, matches, exceptions, exception_events)
 3. Stages 1–3 of matching engine (normalize, exact, fuzzy UTR, amount/date)
 4. Baseline exception list as JSON/console

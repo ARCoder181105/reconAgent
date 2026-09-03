@@ -90,7 +90,7 @@ The answer key (true settlement ↔ bank-line mapping, and the list of genuine o
 
 ## 4. Data Schemas
 
-### 4.1 `razorpay_settlements.csv` — the structured, ground-truth side
+### 4.1 `settlements.csv` — the structured, ground-truth side
 
 | Column | Type | Notes |
 |---|---|---|
@@ -285,7 +285,7 @@ CREATE TABLE matches (
     match_id        INTEGER PRIMARY KEY AUTOINCREMENT,
     settlement_id   TEXT,
     line_id         INTEGER,
-    stage           TEXT,       -- e.g. 'stage1_exact', 'stage4_batch_sum'
+    stage           TEXT,       -- e.g. 'exact', 'batch_sum'
     confidence      INTEGER,
     resolved_at     TEXT,
     FOREIGN KEY (settlement_id) REFERENCES settlements(settlement_id),
@@ -376,17 +376,18 @@ recon-engine/
 │   │   ├── db.py
 │   │   ├── data_generator/
 │   │   │   ├── generate_settlements.py
-│   │   │   ├── generate_bank_statement.py
+│   │   │   ├── generate_statement.py
 │   │   │   ├── seed_config.py       # true/exception/ambiguous ratios
 │   │   │   └── answer_key.py
 │   │   └── matcher/
 │   │       ├── normalize.py
-│   │       ├── stage1_exact.py
-│   │       ├── stage2_fuzzy_utr.py
-│   │       ├── stage3_amount_date.py
-│   │       ├── stage4_batch_sum.py
-│   │       ├── stage5_llm_tiebreak.py
-│   │       └── pipeline.py
+│   │       ├── normalizer.py
+│   │       ├── exact_match.py
+│   │       ├── fuzzy_match.py
+│   │       ├── amount_date_match.py
+│   │       ├── batch_match.py
+│   │       ├── llm_tiebreak.py
+│   │       └── reconcile.py
 │   ├── scoring/
 │   │   └── score_against_answer_key.py
 │   ├── data/                        # generated CSVs + answer_key.json live here

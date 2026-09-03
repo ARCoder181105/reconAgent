@@ -25,12 +25,12 @@
 ## Pipeline Stage Identifiers
 
 | Stage | Key (used in matches.stage) |
-|---|---|
-| 1 | `stage1_exact` |
-| 2 | `stage2_fuzzy_utr` |
-| 3 | `stage3_amount_date` |
-| 4 | `stage4_batch_sum` |
-| 5 | `stage5_llm_tiebreak` |
+|---|---|---|
+| Exact UTR | `exact` |
+| Fuzzy UTR | `fuzzy_utr` |
+| Amount + date | `amount_date` |
+| Batch-sum | `batch_sum` |
+| LLM tie-break | `llm_tiebreak` |
 
 ## Event Types (event-sourced audit log)
 

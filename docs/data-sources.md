@@ -19,7 +19,7 @@ The generator produces two CSVs **plus** a hidden `answer_key.json`. The answer 
 
 ### Outputs
 
-1. `razorpay_settlements.csv` — structured side (`setl_` ids, full UTR, net computation from gross − fees − GST − refunds + adjustments)
+1. `settlements.csv` — structured side (`setl_` ids, full UTR, net computation from gross − fees − GST − refunds + adjustments)
 2. `bank_statement.csv` — messy side (inconsistent dates, freetext descriptions, garbled ref_no, debit/credit, balance noise, bank name)
 3. `answer_key.json` — the ground-truth settlement↔bank-line mapping + the genuine orphans (used ONLY by the offline scoring script)
 

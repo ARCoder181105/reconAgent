@@ -8,7 +8,7 @@
 
 | Scope | Files |
 |---|---|
-| Settlement + bank statement generator | `data_generator/generate_settlements.py`, `generate_bank_statement.py` |
+| Settlement + bank statement generator | `data_generator/generate_settlements.py`, `generate_statement.py` |
 | Ratio/seed config | `data_generator/seed_config.py` |
 | Hidden answer key | `data_generator/answer_key.py` |
 | Offline scoring | `scoring/score_against_answer_key.py` |
@@ -22,10 +22,10 @@
 | Scope | Files |
 |---|---|
 | DB + models | `app/db.py`, `app/models.py`, `app/schemas.py` |
-| Pipeline stages | `app/matcher/` (normalize, stage1–5, pipeline.py) |
+| Pipeline stages | `app/matcher/` (normalizer, exact/fuzzy/amount_date/batch/llm, reconcile.py) |
 | Exception engine + clustering | within matcher/exception engine module |
 | API endpoints | `app/main.py` (generate, run, report, matches, exceptions, resolve, approve, score) |
-| Async LLM tie-break | `app/matcher/stage5_llm_tiebreak.py` + queue |
+| Async LLM tie-break | `app/matcher/llm_tiebreak.py` + queue |
 
 **Boundary**: only Cluster B writes to SQLite; exposes the API the UI consumes.
 
