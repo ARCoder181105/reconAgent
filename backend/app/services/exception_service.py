@@ -19,12 +19,12 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from backend.app import models
-
-# Canonical event types (taxonomy.md).
-EV_CREATED = "CREATED"
-EV_MAKER_PROPOSED = "MAKER_PROPOSED"
-EV_CHECKER_APPROVED = "CHECKER_APPROVED"
-EV_CHECKER_REJECTED = "CHECKER_REJECTED"
+from backend.app.services.constants import (
+    EV_CHECKER_APPROVED,
+    EV_CHECKER_REJECTED,
+    EV_CREATED,
+    EV_MAKER_PROPOSED,
+)
 
 
 def _now() -> datetime:

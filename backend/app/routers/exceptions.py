@@ -6,9 +6,11 @@ from sqlalchemy.orm import Session
 
 from backend.app import models, schemas
 from backend.app.db import get_session
+from backend.app.routers.constants import API_PREFIX, TAG_EXCEPTIONS
 from backend.app.services import exception_service
+from backend.app.services.constants import STATUS_PENDING_APPROVAL
 
-router = APIRouter(prefix="/api/exceptions", tags=["exceptions"])
+router = APIRouter(prefix=f"{API_PREFIX}/exceptions", tags=[TAG_EXCEPTIONS])
 
 
 @router.get("", response_model=list[schemas.ExceptionOut])
@@ -27,7 +29,7 @@ def pending_approval(db: Session = Depends(get_session)):
     """Maker-submitted, awaiting the checker (derived projection)."""
     return (
         db.query(models.Exception)
-        .filter(models.Exception.status == "pending_approval")
+        .filter(models.Exception.status == STATUS_PENDING_APPROVAL)
         .order_by(models.Exception.created_at, models.Exception.exception_id)
         .all()
     )

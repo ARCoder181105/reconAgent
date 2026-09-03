@@ -6,9 +6,10 @@ from sqlalchemy.orm import Session
 
 from backend.app import schemas
 from backend.app.db import get_session
+from backend.app.routers.constants import API_PREFIX, TAG_DATA
 from backend.app.services import reconcile_service
 
-router = APIRouter(prefix="/api", tags=["data"])
+router = APIRouter(prefix=API_PREFIX, tags=[TAG_DATA])
 
 
 @router.post("/generate-data", response_model=schemas.GenerateResponse)

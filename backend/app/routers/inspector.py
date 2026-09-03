@@ -6,8 +6,9 @@ from sqlalchemy.orm import Session
 
 from backend.app import models, schemas
 from backend.app.db import get_session
+from backend.app.routers.constants import API_PREFIX, TAG_INSPECTOR
 
-router = APIRouter(prefix="/api", tags=["inspector"])
+router = APIRouter(prefix=API_PREFIX, tags=[TAG_INSPECTOR])
 
 
 @router.get("/settlements", response_model=list[schemas.SettlementOut])

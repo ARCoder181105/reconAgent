@@ -20,6 +20,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from backend.eval.constants import DEFAULT_PENALTY_WEIGHT
+
 
 @dataclass
 class ScoreCard:
@@ -30,7 +32,7 @@ class ScoreCard:
     false_positives: int = 0
     misses: int = 0
     orphan_lines_total: int = 0
-    penalty_weight: int = 3
+    penalty_weight: int = DEFAULT_PENALTY_WEIGHT
     precision: float = 0.0
     recall: float = 0.0
     f1: float = 0.0
@@ -71,7 +73,7 @@ def score_reconciliation(answer_key: dict, matches) -> ScoreCard:
     orphan_bank_lines = set(answer_key.get("orphan_lines", []))
     matched = _settlement_match_map(matches)
 
-    card = ScoreCard(penalty_weight=3)
+    card = ScoreCard()
     card.orphan_lines_total = len(orphan_bank_lines)
 
     # Settlements that must be matched (have a real bank line in truth).

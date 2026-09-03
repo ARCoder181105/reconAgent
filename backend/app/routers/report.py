@@ -4,10 +4,18 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from backend.constants import EVENT_CHECKER_APPROVED
 from backend.app import models, schemas
 from backend.app.db import get_session
+from backend.app.routers.constants import (
+    API_PREFIX,
+    AUTO_CONF_MIN,
+    REVIEW_CONF_HIGH,
+    REVIEW_CONF_LOW,
+    TAG_REPORT,
+)
 
-router = APIRouter(prefix="/api", tags=["report"])
+router = APIRouter(prefix=API_PREFIX, tags=[TAG_REPORT])
 
 
 @router.get("/report")
@@ -33,8 +41,11 @@ def report(stage: str | None = None, db: Session = Depends(get_session)):
     def pct(n: int) -> float:
         return round(100.0 * n / total, 2)
 
-    auto_matched = {m.settlement_id for m in matches if m.confidence >= 85}
-    review = {m.settlement_id for m in matches if 60 <= m.confidence < 85}
+    auto_matched = {m.settlement_id for m in matches if m.confidence >= AUTO_CONF_MIN}
+    review = {
+        m.settlement_id for m in matches
+        if REVIEW_CONF_LOW <= m.confidence < REVIEW_CONF_HIGH
+    }
 
     return {
         "total_settlements": settlements,
@@ -60,7 +71,7 @@ def _verified_count(db: Session) -> int:
     rows = (
         db.query(models.Exception.settlement_id)
         .join(models.ExceptionEvent, models.ExceptionEvent.exception_id == models.Exception.exception_id)
-        .filter(models.ExceptionEvent.event_type == "CHECKER_APPROVED")
+        .filter(models.ExceptionEvent.event_type == EVENT_CHECKER_APPROVED)
         .all()
     )
     return len({r[0] for r in rows if r[0]})

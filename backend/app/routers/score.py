@@ -10,14 +10,16 @@ from backend.app.data_generator.generator import generate_to_disk
 from backend.app.data_generator.seed_config import build_config
 from backend.app.db import get_session
 from backend.app.matcher.reconcile import reconcile
+from backend.app.routers.constants import API_PREFIX, TAG_SCORE
 from backend.eval.score import score_reconciliation
 from backend.app.services import reconcile_service
+from backend.constants import DEFAULT_SEED
 
-router = APIRouter(prefix="/api", tags=["score"])
+router = APIRouter(prefix=API_PREFIX, tags=[TAG_SCORE])
 
 
 @router.get("/score")
-def score(seed: int = 42, db: Session = Depends(get_session)):
+def score(seed: int = DEFAULT_SEED, db: Session = Depends(get_session)):
     """Eval mode: regenerate, reconcile, and score against the hidden key."""
     from backend.config import settings
 

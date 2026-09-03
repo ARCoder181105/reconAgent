@@ -18,6 +18,7 @@ from backend.app.data_generator.generator import generate_to_disk
 from backend.app.data_generator.seed_config import build_config
 from backend.app.matcher.reconcile import reconcile
 from backend.eval.score import score_reconciliation
+from backend.constants import DEFAULT_SEED
 
 
 def run(data_dir: Path, seed: int, print_json: bool = True) -> dict:
@@ -46,7 +47,7 @@ def run(data_dir: Path, seed: int, print_json: bool = True) -> dict:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Offline reconcile + score")
     parser.add_argument("--data-dir", type=Path, default=None, help="output dir (default: settings.data_dir)")
-    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
     args = parser.parse_args(argv)
 
     if args.data_dir is None:
