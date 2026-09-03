@@ -8,8 +8,27 @@ from backend.app import schemas
 from backend.app.db import get_session
 from backend.app.routers.constants import API_PREFIX, TAG_DATA
 from backend.app.services import reconcile_service
+from backend.app.services.llm_queue import TiebreakQueue
+from backend.config import settings
 
 router = APIRouter(prefix=API_PREFIX, tags=[TAG_DATA])
+
+# It8: process-wide async LLM tie-break queue, bound to the real (file) DB.
+# Created only when a Gemini key is configured; otherwise None so no background
+# thread is ever spawned (e.g. in tests / local runs without an API key).
+_tiebreak_queue: TiebreakQueue | None = (
+    TiebreakQueue(
+        api_key=settings.gemini_api_key,
+        model=settings.gemini_model,
+    )
+    if settings.gemini_api_key
+    else None
+)
+
+
+def get_tiebreak_queue() -> TiebreakQueue | None:
+    """Return the app-wide queue (exposed for tests to inject)."""
+    return _tiebreak_queue
 
 
 @router.post("/generate-data", response_model=schemas.GenerateResponse)
@@ -23,5 +42,23 @@ def run_reconciliation(
     reload_data: bool = True,
     db: Session = Depends(get_session),
 ):
-    """Run the staged pipeline deterministically (stage-5 lands in It8)."""
-    return reconcile_service.run_reconciliation(db, seed=seed, reload_data=reload_data)
+    """Run the staged pipeline deterministically (stage-5 tail lands in It8).
+
+    The deterministic report is returned immediately; the async LLM tie-break
+    tail is enqueued on the process-wide queue and drained in the background.
+    """
+    return reconcile_service.run_reconciliation(
+        db, seed=seed, reload_data=reload_data, tiebreak_queue=_tiebreak_queue
+    )
+
+
+@router.get("/ai-tiebreaks")
+def ai_tiebreaks_status() -> dict:
+    """Queue health for the It9 dashboard: pending / processed / failed."""
+    if _tiebreak_queue is None:
+        return {"pending": 0, "processed": 0, "failed": 0}
+    return {
+        "pending": _tiebreak_queue.pending(),
+        "processed": _tiebreak_queue.processed(),
+        "failed": _tiebreak_queue.failed(),
+    }

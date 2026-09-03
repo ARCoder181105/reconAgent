@@ -18,6 +18,15 @@ from backend.app import models
 from backend.app.data_generator.generator import generate_to_disk
 from backend.app.data_generator.seed_config import build_config
 from backend.app.matcher.reconcile import reconcile
+from backend.app.services.llm_queue import TiebreakQueue, TiebreakTask
+from backend.constants import (
+    REASON_NO_CANDIDATE,
+    REASON_UTR_UNRESOLVED,
+)
+
+# Stage-5 candidates: reasons that represent GENUINELY unresolved credit lines
+# (a real bank line with no deterministic match), eligible for the LLM tail.
+_TIEBREAK_REASONS = (REASON_UTR_UNRESOLVED, REASON_NO_CANDIDATE)
 
 
 def load_csv_rows(path) -> list[dict]:
@@ -116,8 +125,19 @@ def _load_lines(dataset) -> list[dict]:
     return rows
 
 
-def run_reconciliation(db, seed: int | None = None, reload_data: bool = True) -> dict:
-    """Load CSVs, run the pipeline, persist matches + exceptions + events."""
+def run_reconciliation(
+    db,
+    seed: int | None = None,
+    reload_data: bool = True,
+    tiebreak_queue=None,
+) -> dict:
+    """Load CSVs, run the pipeline, persist matches + exceptions + events.
+
+    ``tiebreak_queue`` is an optional ``TiebreakQueue`` for the async LLM
+    Stage 5 tail.  When supplied, eligible stage-5 exception records are
+    enqueued and the background worker is started.  In tests the queue is
+    ``None`` so no background thread is spawned.
+    """
     from backend.config import settings
 
     if reload_data:
@@ -145,7 +165,65 @@ def run_reconciliation(db, seed: int | None = None, reload_data: bool = True) ->
     _persist_exceptions(db, result.exceptions)
     db.commit()
 
+    # --- It8: async LLM tie-break tail (last resort, background only) ---
+    if tiebreak_queue is not None:
+        enqueue_tiebreaks(db, result.exceptions, tiebreak_queue)
+        tiebreak_queue.start()
+
     return {"report": _map_resolve(result.report)}
+
+
+def enqueue_tiebreaks(db, exception_records, queue) -> int:
+    """Map stage-5 eligible exception records to ``TiebreakTask`` objects.
+
+    Returns the number of tasks enqueued.
+    """
+    from math import isfinite
+
+    enqueued = 0
+    for e in exception_records:
+        if e.reason_code not in _TIEBREAK_REASONS:
+            continue
+        if not e.line_id:
+            continue
+        exc_rows = (
+            db.query(models.Exception)
+            .filter(
+                models.Exception.line_id == e.line_id,
+                models.Exception.reason_code.in_(_TIEBREAK_REASONS),
+            )
+            .all()
+        )
+        if not exc_rows:
+            continue
+        exc_id = exc_rows[0].exception_id
+
+        # Pull the persisted raw bank line for LLM context (credit rupees -> paise).
+        line = {"line_id": e.line_id}
+        bl = db.get(models.BankStatement, e.line_id)
+        if bl is not None:
+            line = {
+                "line_id": bl.line_id,
+                "description": bl.description or "",
+                "ref_no": bl.ref_no or "",
+                "txn_date": bl.txn_date or bl.value_date or "",
+                "value_date": bl.value_date or "",
+            }
+            credit = bl.credit
+            if isinstance(credit, (int, float)) and isfinite(credit):
+                line["credit_paise"] = int(round(credit * 100))
+
+        queue.enqueue(
+            TiebreakTask(
+                exception_id=exc_id,
+                line=line,
+                candidates=e.candidates or [],
+                settlement_id=e.settlement_id,
+                reason_code=e.reason_code,
+            )
+        )
+        enqueued += 1
+    return enqueued
 
 
 def _persist_exceptions(db, exception_records) -> None:

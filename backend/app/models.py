@@ -121,6 +121,8 @@ class ExceptionEvent(Base):
         ForeignKey("exceptions.exception_id"), nullable=False
     )
     event_type: Mapped[str] = mapped_column(String, nullable=False)
+    # event_type ∈ {CREATED, MAKER_PROPOSED, CHECKER_APPROVED, CHECKER_REJECTED,
+    #              AI_TIEBREAK_SUGGESTED} (plain String; no DB constraint).
     maker_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     checker_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     resolution_data: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

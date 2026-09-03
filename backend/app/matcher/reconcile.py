@@ -257,11 +257,23 @@ def _process_credit(
         return
 
     # --- Stage 5 hook: genuinely unresolvable after 1-4 ---
+    # Attach the remaining settlement pool as candidate context for the async
+    # LLM tie-break. Pure additive signal; does not change reason/confidence or
+    # auto-close anything.
+    candidates = [
+        {
+            "settlement_id": s["settlement_id"],
+            "net_amount": s["net_amount"],
+            "settlement_date": s["settlement_date"],
+        }
+        for s in settlements.values()
+    ]
     exceptions.append(
         ExceptionRecord(
             reason_code=_unresolved_code(line),
             line_id=line["line_id"],
             confidence=0,
+            candidates=candidates,
             notes=[
                 "unresolved by exact/fuzzy/amount_date/batch_sum; queued for "
                 "LLM tie-break (last resort, async)"
