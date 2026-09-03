@@ -100,3 +100,21 @@ def test_batch_no_partition():
         [_settlement("setl_a", 1234), _settlement("setl_b", 5678)],
     )
     assert res.status == "no_partition"
+
+
+# --- batch date window (It9 fix: wider than amount+date) ---
+def test_batch_spans_longer_than_amount_date_window():
+    """A batch aggregates settlements trailing several business days behind the
+    receipt date; the batch stage must recover them even when amount+date's
+    tighter window would exclude them."""
+    # bank line on Mon; settlements 1 and 3 business days earlier — outside the
+    # ±2 amount+date window but inside the wider batch window.
+    line = _line(credit_paise=3000, txn_date="2026-09-04")  # Fri
+    # 2026-09-01 Tue, 2026-09-02 Wed -> 3 and 2 business days before Fri
+    settlements = [
+        _settlement("setl_a", 1000, date_str="2026-09-01"),
+        _settlement("setl_b", 2000, date_str="2026-09-02"),
+    ]
+    res = batch_match(line, settlements)
+    assert res.status == "match"
+    assert sorted(res.settlement_ids) == ["setl_a", "setl_b"]

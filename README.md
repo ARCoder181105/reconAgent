@@ -11,7 +11,7 @@ ReconAgent matches a Razorpay-style settlement report against messy bank stateme
 ## Status
 
 - **Iterations 0–8 complete & committed**: data generator, matcher (exact / fuzzy UTR / amount+date / batch‑sum), reconcile + exception engine, offline scoring with 3× false‑positive penalty, FastAPI backend, and the Stage 5 async LLM tie‑break with graceful fallback.
-- Metrics (seed 42): **precision 1.0, recall 0.9167, F1 0.9565, penalized 0.9167** — the deterministic output is unaffected by the LLM tail.
+- **Accuracy tuning (It9 pre-dashboard)**: recovered the two deterministic miss sources — a wider batch date window and a dominant‑UTR tie‑break — lifting seed‑42 eval to **48/48, precision 1.0, recall 1.0, F1 1.0, penalized 1.0** with **0 false positives** (recall +6.25 to +8.33pp across seeds 42/43/44/45/7/123).
 - **Next**: pause for review, then Iterations 9–11 (React dashboard).
 
 ---

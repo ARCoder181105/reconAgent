@@ -202,6 +202,18 @@ def _process_credit(
     # --- Stage 3: amount + date ---
     amt_res = amount_date_match(line, list(settlements.values()), tolerance_paise)
     if amt_res.status == "ambiguous":
+        # Amount+date cannot uniquely pick (near-identical amounts). Before
+        # raising MULTIPLE_CANDIDATES, try breaking the tie with a dominant UTR:
+        # when ONE settlement has a clearly dominant UTR (near-threshold score +
+        # wide margin over every rival, amount in tolerance), the stronger UTR
+        # signal disambiguates the two near-identical amounts. Review-band only;
+        # never auto-closes.
+        dom = fuzzy_match.dominant_utr_match(line, list(settlements.values()))
+        if dom is not None:
+            sid, verdict = dom
+            settlements.pop(sid, None)
+            matches.append(ResolvedMatch(sid, line["line_id"], STAGE_FUZZY_UTR, verdict.confidence))
+            return
         exceptions.append(
             ExceptionRecord(
                 reason_code=REASON_MULTIPLE_CANDIDATES,
@@ -254,6 +266,18 @@ def _process_credit(
                 notes=["batch-sum single partition; no UTR corroboration — Maker review"],
             )
         )
+        return
+
+    # --- Stage 4.5: dominant-UTR recovery (targeted, conservative) ---
+    # When a line has no amount+date candidate in window and no batch partition,
+    # but ONE settlement carries a clearly dominant UTR (near-threshold score +
+    # wide margin, amount in tolerance), accept it as review-band signal instead
+    # of pushing a genuine match to the LLM tail. Never auto-closes.
+    dom = fuzzy_match.dominant_utr_match(line, list(settlements.values()))
+    if dom is not None:
+        sid, verdict = dom
+        settlements.pop(sid, None)
+        matches.append(ResolvedMatch(sid, line["line_id"], STAGE_FUZZY_UTR, verdict.confidence))
         return
 
     # --- Stage 5 hook: genuinely unresolvable after 1-4 ---

@@ -2,14 +2,14 @@
 from __future__ import annotations
 
 from backend.app.matcher.exact_match import exact_match
-from backend.app.matcher.fuzzy_match import fuzzy_match
+from backend.app.matcher.fuzzy_match import dominant_utr_match, fuzzy_match
 
 UTR = "1597813219E1PQ6W"
 
 
-def _settlement(net_paise: int = 97640, utr: str = UTR) -> dict:
+def _settlement(net_paise: int = 97640, utr: str = UTR, sid: str = "setl_a") -> dict:
     return {
-        "settlement_id": "setl_a",
+        "settlement_id": sid,
         "utr": utr,
         "settlement_date": "2026-09-01",
         "net_amount": net_paise,
@@ -75,3 +75,51 @@ def test_fuzzy_wrong_amount_rejected():
 def test_fuzzy_unrelated_token_rejected():
     v = fuzzy_match(_settlement(), _line(desc="NEFT-AAAAAAAAAAAAAAAA", credit_paise=97640))
     assert not v.matched
+
+
+# --- dominant-UTR recovery (It9 fix) ---
+def test_dominant_utr_breaks_amount_tie():
+    """Two near-identical amounts make amount+date ambiguous; a clearly dominant
+    UTR disambiguates to the intended settlement."""
+    line = _line(
+        ref="L0FBCCSP2B7UV6R1",
+        credit_paise=29188,
+    )
+    # bank UTR L0FBCCSP2B7UV6R1 vs true LXCBFCSP2B7UV6R1: score ~0.81, and a
+    # distractor with a near-identical amount (60 paise off) but unrelated UTR.
+    dom = dominant_utr_match(
+        line,
+        [
+            _settlement(29188, "LXCBFCSP2B7UV6R1", sid="setl_true"),
+            _settlement(29128, "R5HT4RKGDU02RLWW", sid="setl_noise"),
+        ],
+    )
+    assert dom is not None
+    sid, verdict = dom
+    assert sid == "setl_true"
+    assert verdict.matched
+    assert verdict.confidence < 85  # review band, never auto-close
+
+
+def test_dominant_utr_refuses_no_clear_margin():
+    """With no UTR dominance (no candidate scores above the floor), returns None."""
+    line = _line(ref="BY TRANSFER-CLG", credit_paise=29188)
+    dom = dominant_utr_match(
+        line,
+        [
+            _settlement(29188, "LXCBFCSP2B7UV6R1", sid="setl_a"),
+            _settlement(29128, "R5HT4RKGDU02RLWW", sid="setl_b"),
+        ],
+    )
+    assert dom is None
+
+
+def test_dominant_utr_refuses_tight_margin():
+    """Two settlements with similar UTR similarity must be left ambiguous."""
+    base = "LXCBFCSP2B7UV6R1"
+    line = _line(ref="LXCBFCSP2B7UV6R1", credit_paise=29900)
+    a = _settlement(29900, base, sid="setl_a")
+    b = _settlement(29900, "LXCBFCSP2B7UV6R2", sid="setl_b")  # off by one char
+    dom = dominant_utr_match(line, [a, b])
+    # Off-by-one rival has a high score too -> ratio below 1.5 -> refuse.
+    assert dom is None

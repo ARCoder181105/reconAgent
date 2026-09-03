@@ -21,6 +21,8 @@ from backend.app.matcher.constants import (
     DEFAULT_AMOUNT_TOLERANCE_PAISE,
     FUZZY_AUTO_HIGH_SCORE,
     FUZZY_AUTO_LOW_SCORE,
+    FUZZY_DOMINANT_MIN_RATIO,
+    FUZZY_DOMINANT_MIN_SCORE,
     FUZZY_MIN_SCORE,
     REVIEW_HIGH,
     UTR_TOKEN_RE,
@@ -109,3 +111,59 @@ def _conf_from_score(score: float) -> int:
     if score >= FUZZY_MIN_SCORE:
         return (AUTO_LOW + REVIEW_HIGH) // 2  # borderline, ~84
     return int(score * 60)
+
+
+def dominant_utr_match(
+    normalized_line: dict,
+    candidate_settlements: list[dict],
+) -> tuple[str, MatchVerdict] | None:
+    """Recover the single clearly-dominant UTR candidate that normal stages missed.
+
+    Fires only when NO settlement reached the normal fuzzy accept gate but one
+    record bests the field by a wide margin (clear UTR separation). The amount
+    must already be in tolerance for the candidate to count. This is a low-risk,
+    explainable tie-break that keeps ``FUZZY_MIN_SCORE`` conservative — it can
+    pick the *intended* UTR even when the amount+date stage is deliberately
+    ambiguous (near-identical amounts), because the UTR is the stronger signal.
+
+    Returns ``(settlement_id, matched_verdict)``, or ``None`` when guards fail.
+    """
+    token_source: dict[str, float] = {}
+    for s in candidate_settlements:
+        utr = s.get("utr", "")
+        if not utr:
+            continue
+        # Amount must be plausible (within tolerance) for the candidate to count.
+        if not amount_close(s["net_amount"], normalized_line.get("credit_paise") or 0):
+            continue
+        tokens = _candidate_tokens(normalized_line)
+        best = 0.0
+        for tok in tokens:
+            best = max(best, fuzz.ratio(utr, tok) / 100.0, _truncation_score(utr, tok))
+        if best > 0:
+            token_source[s["settlement_id"]] = best
+
+    if not token_source:
+        return None
+
+    best_id = max(token_source, key=token_source.get)
+    best = token_source[best_id]
+    second = sorted(token_source.values())[-2] if len(token_source) >= 2 else 0.0
+
+    # Conservative gates: near-threshold best + clear margin over every rival.
+    if best < FUZZY_DOMINANT_MIN_SCORE:
+        return None
+    if best < FUZZY_DOMINANT_MIN_RATIO * second:
+        return None
+
+    verdict = MatchVerdict(
+        stage=STAGE_FUZZY_UTR,
+        matched=True,
+        confidence=REVIEW_HIGH,
+        score=best,
+        notes=[
+            f"dominant fuzzy UTR candidate {best_id} (score {best:.2f}, "
+            f"next {second:.2f}, ratio {best / second if second else float('inf'):.2f})"
+        ],
+    )
+    return best_id, verdict

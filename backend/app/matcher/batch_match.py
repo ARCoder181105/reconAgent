@@ -18,12 +18,12 @@ from dataclasses import dataclass, field
 from datetime import date
 
 from backend.app.matcher.constants import (
+    BATCH_WINDOW_BUSINESS_DAYS,
     DEFAULT_AMOUNT_TOLERANCE_PAISE,
-    DEFAULT_WINDOW_BUSINESS_DAYS,
     REVIEW_HIGH,
 )
 
-DATE_WINDOW_BUSINESS_DAYS = DEFAULT_WINDOW_BUSINESS_DAYS
+DATE_WINDOW_BUSINESS_DAYS = BATCH_WINDOW_BUSINESS_DAYS
 
 
 @dataclass

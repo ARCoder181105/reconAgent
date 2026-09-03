@@ -29,12 +29,23 @@ DEFAULT_AMOUNT_TOLERANCE_PAISE = 100  # ± ₹1
 
 # --- Date window (business days) for amount+date / batch stages ---
 DEFAULT_WINDOW_BUSINESS_DAYS = 2
+# A batch transfer aggregates settlements that trail behind the receipt date by
+# up to several business days, so the batch pool uses a wider window than the
+# amount+date stage (which stays tight to avoid false positives).
+BATCH_WINDOW_BUSINESS_DAYS = 4
 
 # --- Fuzzy UTR thresholds ---
 FUZZY_MIN_SCORE = 0.85       # below this, do not accept
 FUZZY_BORDELINE_SCORE = 0.85  # acceptable but low-confidence (review band)
 FUZZY_AUTO_LOW_SCORE = 0.90
 FUZZY_AUTO_HIGH_SCORE = 0.97
+
+# Dominant-candidate recovery (It9): when no stage reaches the normal accept
+# gate but ONE settlement is clearly the intended UTR match, accept it as a
+# review-band signal. Guards: near-threshold best score + clear margin over the
+# next-best (amount already within tolerance for the candidate to count).
+FUZZY_DOMINANT_MIN_SCORE = 0.78
+FUZZY_DOMINANT_MIN_RATIO = 1.5
 
 # --- UTR token length bounds ---
 UTR_MIN_LEN = 12
