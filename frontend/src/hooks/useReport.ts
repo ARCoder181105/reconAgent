@@ -5,7 +5,7 @@ export function useReport() {
   const [report, setReport] = useState<Report | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [busyAction, setBusyAction] = useState<"generate" | "run" | null>(null)
+  const [busyAction, setBusyAction] = useState<"run" | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -38,20 +38,5 @@ export function useReport() {
     [load]
   )
 
-  const generate = useCallback(
-    async (seed?: number) => {
-      setBusyAction("generate")
-      try {
-        await api.generateData(seed)
-        await load()
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Generate failed")
-      } finally {
-        setBusyAction(null)
-      }
-    },
-    [load]
-  )
-
-  return { report, loading, error, busyAction, runReconciliation, generate, reload: load }
+  return { report, loading, error, busyAction, runReconciliation, reload: load }
 }

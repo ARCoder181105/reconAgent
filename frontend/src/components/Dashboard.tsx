@@ -1,5 +1,5 @@
 import { useEffect } from "react"
-import { RefreshCw, Play, FilePlus2 } from "lucide-react"
+import { RefreshCw, Play } from "lucide-react"
 import { useReport } from "@/hooks/useReport"
 import { useTiebreaks } from "@/hooks/useTiebreaks"
 import { MetricCard } from "@/components/MetricCard"
@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 
 export function Dashboard() {
-  const { report, loading, error, busyAction, runReconciliation, generate, reload } = useReport()
+  const { report, loading, error, busyAction, runReconciliation, reload } = useReport()
   const { status, active, error: tieError, setOnDone } = useTiebreaks()
 
   const pending = status?.pending ?? 0
@@ -30,16 +30,10 @@ export function Dashboard() {
             How the books reconcile
           </h1>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => generate()} disabled={busyAction !== null}>
-            {busyAction === "generate" ? <RefreshCw className="h-4 w-4 animate-spin" /> : <FilePlus2 className="h-4 w-4" />}
-            Generate
-          </Button>
-          <Button onClick={() => runReconciliation()} disabled={busyAction !== null}>
-            {busyAction === "run" ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-            Run
-          </Button>
-        </div>
+        <Button onClick={() => runReconciliation()} disabled={busyAction === "run"}>
+          {busyAction === "run" ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+          {busyAction === "run" ? "Reconciling…" : "Run reconciliation"}
+        </Button>
       </header>
 
       {(error || tieError) && (
