@@ -1,0 +1,52 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+
+# --- Test / coverage ---
+.pytest_cache/
+.coverage
+htmlcov/
+
+# --- Secrets / local config ---
+.env
+.env.*
+*.env
+!*.env.example
+
+# --- LLM / API keys ---
+*.key
+*.pem
+*.crt
+
+# --- Generated data (reproducible; never commit) ---
+backend/data/*
+!backend/data/.gitkeep
+
+# --- DB ---
+*.db
+*.sqlite
+*.sqlite3
+
+# --- Node / frontend ---
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# --- OS / editor ---
+.DS_Store
+*.swp
+.idea/
+.vscode/
+*.code-workspace
+
+# --- Misc ---
+*.log
+.DS_Store
