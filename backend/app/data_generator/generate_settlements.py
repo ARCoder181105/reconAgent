@@ -9,10 +9,32 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass, field
 
+from backend.constants import (
+    CATEGORY_AMBIGUOUS,
+    CATEGORY_BATCHED,
+    CATEGORY_EXACT,
+    CATEGORY_FUZZY,
+    CATEGORY_ORPHAN,
+)
+from backend.app.data_generator.constants import (
+    ADJUSTMENT_PCT_MAX,
+    ADJUSTMENT_PCT_MIN,
+    ADJUSTMENT_PROB,
+    BATCH_GROUP_SIZE,
+    GST_ON_FEES_RATE,
+    GROSS_BANDS_RUPEES,
+    MDR_FEE_MAX,
+    MDR_FEE_MIN,
+    REFUND_PCT_MAX,
+    REFUND_PCT_MIN,
+    REFUND_PROB,
+    SETTLEMENT_ID_ALPHABET,
+    SETTLEMENT_ID_LEN,
+    SETTLEMENT_ID_PREFIX,
+    UTR_ALPHABET,
+    UTR_LENGTH,
+)
 from backend.app.data_generator.seed_config import SeedConfig
-
-# UTRs look like a ~16 char alphanumeric run (e.g. "1597813219E1PQ6W").
-_UTR_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ0123456789"
 
 
 @dataclass
@@ -46,25 +68,27 @@ def _rng(seed: int) -> random.Random:
 
 def _make_utr(rng: random.Random) -> str:
     # 16 chars, first char often numeric
-    return "".join(rng.choice(_UTR_ALPHABET) for _ in range(16))
+    return "".join(rng.choice(UTR_ALPHABET) for _ in range(UTR_LENGTH))
 
 
 def _make_id(rng: random.Random) -> str:
-    return "setl_" + "".join(rng.choice("0123456789abcdef") for _ in range(12))
+    return SETTLEMENT_ID_PREFIX + "".join(
+        rng.choice(SETTLEMENT_ID_ALPHABET) for _ in range(SETTLEMENT_ID_LEN)
+    )
 
 
 def _gross(rng: random.Random) -> int:
     # Realistic order-value clustering: round paise to whole rupees at common bands.
-    base = rng.choice([149, 299, 499, 899, 1299, 2499, 4999, 9999, 14999, 24999])
+    base = rng.choice(GROSS_BANDS_RUPEES)
     return base * 100
 
 
 def _compute_net(rng: random.Random, gross: int) -> tuple[int, int, int, int, int]:
     """Return (fees, tax_gst, refunds, adjustments, net)."""
-    fees = int(round(gross * rng.uniform(0.015, 0.025)))
-    tax_gst = int(round(fees * 0.18))
-    refunds = 0 if rng.random() < 0.7 else int(gross * rng.uniform(0.02, 0.08))
-    adjustments = -int(gross * rng.uniform(0.01, 0.05)) if rng.random() < 0.15 else 0
+    fees = int(round(gross * rng.uniform(MDR_FEE_MIN, MDR_FEE_MAX)))
+    tax_gst = int(round(fees * GST_ON_FEES_RATE))
+    refunds = 0 if rng.random() < REFUND_PROB else int(gross * rng.uniform(REFUND_PCT_MIN, REFUND_PCT_MAX))
+    adjustments = -int(gross * rng.uniform(ADJUSTMENT_PCT_MIN, ADJUSTMENT_PCT_MAX)) if rng.random() < ADJUSTMENT_PROB else 0
     net = gross - fees - tax_gst - refunds + adjustments
     return fees, tax_gst, refunds, adjustments, net
 
@@ -110,12 +134,12 @@ def generate_settlements(cfg: SeedConfig, rng: random.Random | None = None) -> l
                 )
             )
 
-    _assign_batch_groups(scenarios, counts.get("batched", 0))
+    _assign_batch_groups(scenarios, counts.get(CATEGORY_BATCHED, 0))
     # Orphan settlements: still have a record but no bank line (true exception).
     for s in scenarios:
-        if s.category == "orphan":
+        if s.category == CATEGORY_ORPHAN:
             s.intended_match = False
-        if s.category == "ambiguous":
+        if s.category == CATEGORY_AMBIGUOUS:
             s.intended_match = True
 
     return scenarios
@@ -134,8 +158,8 @@ def _plan_counts(cfg: SeedConfig) -> dict[str, int]:
     ratios = cfg.ratios
     counts: dict[str, int] = {}
     allocated = 0
-    for key in ("exact", "fuzzy", "batched", "ambiguous", "orphan"):
-        if key == "orphan":
+    for key in (CATEGORY_EXACT, CATEGORY_FUZZY, CATEGORY_BATCHED, CATEGORY_AMBIGUOUS, CATEGORY_ORPHAN):
+        if key == CATEGORY_ORPHAN:
             counts[key] = total - allocated  # remainder
         else:
             counts[key] = int(round(total * ratios[key]))
@@ -150,11 +174,11 @@ def _assign_batch_groups(scenarios: list[SettlementScenario], n_batched: int) ->
     will produce one aggregated credit for them. To keep it interesting, split
     them into groups of 2-3 sharing an aggregated bank line.
     """
-    batched = [s for s in scenarios if s.category == "batched"]
+    batched = [s for s in scenarios if s.category == CATEGORY_BATCHED]
     groups: list[list[SettlementScenario]] = []
     i = 0
     while i < len(batched):
-        size = 3 if len(batched) - i >= 3 else len(batched) - i
+        size = BATCH_GROUP_SIZE if len(batched) - i >= BATCH_GROUP_SIZE else len(batched) - i
         groups.append(batched[i : i + size])
         i += size
     for grp in groups:

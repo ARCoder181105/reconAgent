@@ -15,6 +15,10 @@ from backend.app.data_generator.answer_key_generator import (
     build_answer_key,
     write_answer_key,
 )
+from backend.app.data_generator.constants import (
+    SETTLEMENT_COLUMNS,
+    STATEMENT_COLUMNS,
+)
 from backend.app.data_generator.generate_settlements import (
     SettlementScenario,
     generate_settlements,
@@ -24,17 +28,6 @@ from backend.app.data_generator.generate_statement import (
     generate_statement,
 )
 from backend.app.data_generator.seed_config import SeedConfig, build_config
-
-_SETTLEMENT_COLUMNS = [
-    "settlement_id", "utr", "settlement_date", "no_of_transactions",
-    "gross_amount", "fees", "tax_gst", "refunds_deducted", "adjustments",
-    "net_amount", "status", "bank_account_last4",
-]
-
-_STATEMENT_COLUMNS = [
-    "line_id", "txn_date", "value_date", "description", "ref_no",
-    "debit", "credit", "balance", "bank_name",
-]
 
 
 def _settlement_row(s: SettlementScenario) -> list:
@@ -59,7 +52,7 @@ def write_settlements_csv(scenarios: list[SettlementScenario], path: Path) -> No
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
-        writer.writerow(_SETTLEMENT_COLUMNS)
+        writer.writerow(SETTLEMENT_COLUMNS)
         for s in scenarios:
             writer.writerow(_settlement_row(s))
 
@@ -68,7 +61,7 @@ def write_statement_csv(lines: list[BankLine], path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
-        writer.writerow(_STATEMENT_COLUMNS)
+        writer.writerow(STATEMENT_COLUMNS)
         for line in lines:
             writer.writerow(_statement_row(line))
 

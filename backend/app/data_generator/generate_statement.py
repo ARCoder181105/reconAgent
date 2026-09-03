@@ -10,11 +10,24 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass, field
 
+from backend.constants import (
+    CATEGORY_AMBIGUOUS,
+    CATEGORY_BATCHED,
+    CATEGORY_FUZZY,
+    CATEGORY_ORPHAN,
+)
+from backend.app.data_generator.constants import (
+    BANKS,
+    BANK_CHARGE_PAISE,
+    CHARGE_DESCRIPTIONS,
+    INITIAL_BALANCE,
+    OFF_BY_FEE_PROB,
+    ORPHAN_CHARGE_DATE,
+    ORPHAN_CHARGE_PROB,
+)
 from backend.app.data_generator.generate_settlements import SettlementScenario
 from backend.app.data_generator.seed_config import SeedConfig
-
-_BANKS = ["HDFC", "ICICI", "Kotak", "Axis", "SBI"]
-_DATE_FORMATS = ["%d-%m-%Y", "%d/%m/%y", "%Y-%m-%d", "%d/%m/%Y"]
+from backend.utils.money import paise_to_rupees
 
 
 @dataclass
@@ -42,13 +55,15 @@ def _line_id(idx: int) -> str:
 def _fmt_date(rng: random.Random, iso_date: str) -> str:
     from datetime import date, datetime
 
+    from backend.utils.dates import DATE_FORMATS
+
     d = date.fromisoformat(iso_date)
-    fmt = rng.choice(_DATE_FORMATS)
+    fmt = rng.choice(DATE_FORMATS)
     return datetime(d.year, d.month, d.day).strftime(fmt)
 
 
 def _money(paise: int) -> float:
-    return round(paise / 100.0, 2)
+    return paise_to_rupees(paise)
 
 
 def _exact_description(utr: str) -> str:
@@ -93,13 +108,13 @@ def generate_statement(
     """
     rng = rng or random.Random(cfg.seed + 1)
     lines: list[BankLine] = []
-    balance = 100000.0
+    balance = INITIAL_BALANCE
     idx = 1
 
     # Pre-compute batched credits per group so we emit one aggregate line per group.
     by_group: dict[str, list[SettlementScenario]] = {}
     for s in schemes:
-        if s.category == "batched" and s.batch_group:
+        if s.category == CATEGORY_BATCHED and s.batch_group:
             by_group.setdefault(tuple(s.batch_group), []).append(s)
 
     handled_group_lines: set[str] = set()
@@ -117,7 +132,7 @@ def generate_statement(
             debit=None,
             credit=credit,
             balance=round(balance, 2),
-            bank_name=rng.choice(_BANKS),
+            bank_name=rng.choice(BANKS),
             settlement_id=scenario.settlement_id if scenario else None,
             batch_settlement_ids=list(batch_ids) if batch_ids else [],
         )
@@ -126,7 +141,7 @@ def generate_statement(
         return line
 
     for s in schemes:
-        if s.category == "batched":
+        if s.category == CATEGORY_BATCHED:
             # Emit the aggregate line only once per group.
             key = tuple(s.batch_group)
             if key in handled_group_lines:
@@ -136,45 +151,38 @@ def generate_statement(
             total = sum(m.net_amount for m in group_schemes)
             ids = [m.settlement_id for m in group_schemes]
             next_line(s, total, ids, "BY TRANSFER-CLG", "")
-        elif s.category == "orphan":
+        elif s.category == CATEGORY_ORPHAN:
             # Not-credited: this settlement has NO bank line (a false-negative case).
             continue
-        elif s.category == "ambiguous":
+        elif s.category == CATEGORY_AMBIGUOUS:
             desc, ref = _ambiguous_description(s.utr)
             next_line(s, s.net_amount, [], desc, ref)
-        elif s.category == "fuzzy":
+        elif s.category == CATEGORY_FUZZY:
             desc, ref = _fuzzy_description(rng, s.utr)
             # Occasionally simulate an off-by-fee amount (bank-side wire fee).
-            credit = s.net_amount - (cfg.off_by_fee_paise if rng.random() < 0.2 else 0)
+            credit = s.net_amount - (cfg.off_by_fee_paise if rng.random() < OFF_BY_FEE_PROB else 0)
             next_line(s, credit, [], desc, ref)
         else:  # exact
             desc = _exact_description(s.utr)
             next_line(s, s.net_amount, [], desc, s.utr)
 
     # Add standalone orphan bank-charge lines (true exceptions, no settlement).
-    n_orphan_charges = max(1, int(cfg.batch_size * 0.05))
+    n_orphan_charges = max(1, int(cfg.batch_size * ORPHAN_CHARGE_PROB))
     for _ in range(n_orphan_charges):
-        charge_paise = rng.choice([500, 118, 590, 236, 354, 1770]) * 1
+        charge_paise = rng.choice(BANK_CHARGE_PAISE) * 1
         charge = _money(charge_paise)
         balance -= charge
         lines.append(
             BankLine(
                 line_id=_line_id(idx),
-                txn_date=_fmt_date(rng, "2026-08-31"),
+                txn_date=_fmt_date(rng, ORPHAN_CHARGE_DATE),
                 value_date="",
-                description=rng.choice(
-                    [
-                        "BANK CHARGES",
-                        "CHQ RETURN CHARGES",
-                        "SMS/ALERT CHARGES",
-                        "DEBIT TO PROCESS FEE",
-                    ]
-                ),
+                description=rng.choice(CHARGE_DESCRIPTIONS),
                 ref_no="",
                 debit=charge,
                 credit=None,
                 balance=round(balance, 2),
-                bank_name=rng.choice(_BANKS),
+                bank_name=rng.choice(BANKS),
                 settlement_id=None,
                 batch_settlement_ids=[],
             )
