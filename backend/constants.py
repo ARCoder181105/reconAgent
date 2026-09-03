@@ -7,7 +7,12 @@ on — most importantly the default LLM model (previously hardcoded in
 from __future__ import annotations
 
 # --- Default LLM model for Stage 5 (overridable via GEMINI_MODEL env) ---
-DEFAULT_GEMINI_MODEL = "gemini-2.0-flash"
+DEFAULT_GEMINI_MODEL = "gemini-3.8-flash"
+
+# --- Cross-cutting numeric defaults (previously hardcoded in config/eval) ---
+DEFAULT_SEED = 42
+DEFAULT_BATCH_SIZE = 60
+DEFAULT_FP_WEIGHT = 3
 
 # --- Canonical pipeline stage keys (taxonomy.md) ---
 STAGE_EXACT = "exact"

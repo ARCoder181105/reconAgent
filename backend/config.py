@@ -11,7 +11,12 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from backend.constants import DEFAULT_GEMINI_MODEL
+from backend.constants import (
+    DEFAULT_BATCH_SIZE,
+    DEFAULT_FP_WEIGHT,
+    DEFAULT_GEMINI_MODEL,
+    DEFAULT_SEED,
+)
 
 # Repo root is two levels above this module (backend/config.py -> repo root).
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -33,14 +38,14 @@ class Settings:
     gemini_model: str = DEFAULT_GEMINI_MODEL
 
     # Data generator
-    seed: int = 42
-    batch_size: int = 60
+    seed: int = DEFAULT_SEED
+    batch_size: int = DEFAULT_BATCH_SIZE
 
     # Database
     db_path: Path = field(default_factory=lambda: Path("backend/data/recon.sqlite3"))
 
     # Scoring
-    fp_weight: float = 3.0
+    fp_weight: float = float(DEFAULT_FP_WEIGHT)
 
     # Logging
     log_level: str = "INFO"
@@ -63,10 +68,10 @@ def load_settings() -> Settings:
     return Settings(
         gemini_api_key=os.getenv("GEMINI_API_KEY", ""),
         gemini_model=os.getenv("GEMINI_MODEL", DEFAULT_GEMINI_MODEL),
-        seed=int(os.getenv("RECON_SEED", "42")),
-        batch_size=int(os.getenv("RECON_BATCH_SIZE", "60")),
+        seed=int(os.getenv("RECON_SEED", str(DEFAULT_SEED))),
+        batch_size=int(os.getenv("RECON_BATCH_SIZE", str(DEFAULT_BATCH_SIZE))),
         db_path=Path(os.getenv("RECON_DB_PATH", "backend/data/recon.sqlite3")),
-        fp_weight=float(os.getenv("RECON_FP_WEIGHT", "3.0")),
+        fp_weight=float(os.getenv("RECON_FP_WEIGHT", str(DEFAULT_FP_WEIGHT))),
         log_level=os.getenv("LOG_LEVEL", "INFO"),
     )
 
