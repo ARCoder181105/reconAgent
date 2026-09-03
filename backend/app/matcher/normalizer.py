@@ -10,6 +10,7 @@ strings/amounts:
 """
 from __future__ import annotations
 
+import math
 import re
 from datetime import date, datetime
 
@@ -47,6 +48,8 @@ def rupees_to_paise(value) -> int | None:
     if value is None or value == "":
         return None
     if isinstance(value, (int, float)):
+        if isinstance(value, float) and math.isnan(value):
+            return None
         num = float(value)
     else:
         cleaned = _NUM_STRIP.sub("", str(value))
