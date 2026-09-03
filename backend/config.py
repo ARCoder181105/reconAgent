@@ -47,6 +47,9 @@ class Settings:
     # Scoring
     fp_weight: float = float(DEFAULT_FP_WEIGHT)
 
+    # CORS: comma-separated allowlist for the frontend dev/preview origins.
+    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+
     # Logging
     log_level: str = "INFO"
 
@@ -72,6 +75,7 @@ def load_settings() -> Settings:
         batch_size=int(os.getenv("RECON_BATCH_SIZE", str(DEFAULT_BATCH_SIZE))),
         db_path=Path(os.getenv("RECON_DB_PATH", "backend/data/recon.sqlite3")),
         fp_weight=float(os.getenv("RECON_FP_WEIGHT", str(DEFAULT_FP_WEIGHT))),
+        cors_origins=os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"),
         log_level=os.getenv("LOG_LEVEL", "INFO"),
     )
 
