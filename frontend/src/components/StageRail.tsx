@@ -69,16 +69,64 @@ export function StageRail({ report }: StageRailProps) {
         ))}
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-1 border-t pt-3 text-xs sm:grid-cols-5">
-        {STAGES.map((stage) => {
-          const n = report.by_stage?.[stage] ?? 0
-          return (
-            <div key={stage} className="flex items-center justify-between gap-2">
-              <span className="text-muted-foreground">{stage}</span>
-              <span className="font-tabular font-medium text-foreground">{n}</span>
-            </div>
-          )
-        })}
+      {/* Which stages close themselves vs need a human (decision D6). */}
+      <div className="mt-5 border-t pt-4">
+        <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+          <span className="font-medium text-foreground">Matches by stage</span>
+          <span className="inline-flex items-center gap-1.5">
+            <span aria-hidden className="h-2 w-2 rounded-full bg-primary" /> auto &ge;85 (closed)
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span aria-hidden className="h-2 w-2 rounded-full bg-[var(--books-blue)]" /> review 60–84 (needs Maker)
+          </span>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b text-left text-xs text-muted-foreground">
+                <th className="py-1.5 pr-2 font-medium">Stage</th>
+                <th className="py-1.5 pr-2 text-right font-medium">Auto</th>
+                <th className="py-1.5 pr-2 text-right font-medium">Review</th>
+                <th className="py-1.5 text-right font-medium">Total</th>
+                <th className="sr-only">trust</th>
+              </tr>
+            </thead>
+            <tbody>
+              {STAGES.map((stage) => {
+                const a = report.by_stage_auto?.[stage] ?? 0
+                const r = report.by_stage_review?.[stage] ?? 0
+                const n = a + r
+                const mixes = a > 0 && r > 0
+                return (
+                  <tr key={stage} className="border-b border-border/60 last:border-0">
+                    <td className="py-1.5 pr-2 font-mono text-xs text-foreground">
+                      {stage}
+                      {mixes && (
+                        <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                          mixed
+                        </span>
+                      )}
+                    </td>
+                    <td className={cn("py-1.5 pr-2 text-right font-tabular", a > 0 && "font-medium text-foreground")}>
+                      {a > 0 ? a : "—"}
+                    </td>
+                    <td className={cn("py-1.5 pr-2 text-right font-tabular", r > 0 && "font-medium text-[var(--books-blue)]")}>
+                      {r > 0 ? r : "—"}
+                    </td>
+                    <td className="py-1.5 text-right font-tabular font-medium text-foreground">{n}</td>
+                  </tr>
+                )
+              })}
+              <tr className="font-medium">
+                <td className="py-2 pr-2 text-xs text-foreground">Total</td>
+                <td className="py-2 pr-2 text-right font-tabular text-primary">{report.auto_matched}</td>
+                <td className="py-2 pr-2 text-right font-tabular text-[var(--books-blue)]">{report.review_queue}</td>
+                <td className="py-2 text-right font-tabular">{report.matched_settlements}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   )

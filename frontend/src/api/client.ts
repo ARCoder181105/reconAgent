@@ -16,6 +16,8 @@ export interface Report {
   verified_count: number
   verified_rate: number
   by_stage: Record<string, number>
+  by_stage_auto: Record<string, number>
+  by_stage_review: Record<string, number>
   by_reason: Record<string, number>
 }
 
@@ -90,6 +92,24 @@ export interface TiebreaksStatus {
   failed: number
 }
 
+/** Shape returned directly by POST /run-reconciliation (omits the live
+ * verified/split fields that only GET /report resolves from matches). */
+export interface RunReport {
+  total_settlements: number
+  total_bank_lines: number
+  matched_settlements: number
+  auto_matched: number
+  review_queue: number
+  unmatched_settlements: number
+  bank_lines_matched: number
+  bank_line_exceptions: number
+  match_rate: number
+  review_rate: number
+  exception_rate: number
+  by_stage: Record<string, number>
+  by_reason: Record<string, number>
+}
+
 const BASE =
   (import.meta.env.VITE_API_BASE as string | undefined) ?? "http://localhost:8000/api"
 
@@ -137,7 +157,7 @@ export const api = {
       body: JSON.stringify(seed != null ? { seed } : {}),
     }),
   runReconciliation: (seed?: number) =>
-    request<{ report: Report }>("/run-reconciliation", {
+    request<{ report: RunReport }>("/run-reconciliation", {
       method: "POST",
       body: JSON.stringify(seed != null ? { seed } : {}),
     }),

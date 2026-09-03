@@ -47,6 +47,14 @@ def report(stage: str | None = None, db: Session = Depends(get_session)):
         if REVIEW_CONF_LOW <= m.confidence < REVIEW_CONF_HIGH
     }
 
+    # Per-stage confidence split so the dashboard can show which stages
+    # auto-close vs which always need a human reviewer (decision D6).
+    by_stage_auto: dict[str, int] = {}
+    by_stage_review: dict[str, int] = {}
+    for m in matches:
+        bucket = by_stage_auto if m.confidence >= AUTO_CONF_MIN else by_stage_review
+        bucket[m.stage] = bucket.get(m.stage, 0) + 1
+
     return {
         "total_settlements": settlements,
         "total_bank_lines": lines,
@@ -62,6 +70,8 @@ def report(stage: str | None = None, db: Session = Depends(get_session)):
         "verified_count": _verified_count(db),
         "verified_rate": pct(_verified_count(db)),
         "by_stage": by_stage,
+        "by_stage_auto": by_stage_auto,
+        "by_stage_review": by_stage_review,
         "by_reason": by_reason,
     }
 
