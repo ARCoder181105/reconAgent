@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 
 export function Dashboard() {
-  const { report, loading, error, busyAction, runReconciliation, reload } = useReport()
+  const { report, loading, error, busyAction, runReconciliation, lastSeed, reload } = useReport()
   const { status, active, error: tieError, setOnDone } = useTiebreaks()
 
   const pending = status?.pending ?? 0
@@ -30,10 +30,17 @@ export function Dashboard() {
             How the books reconcile
           </h1>
         </div>
-        <Button onClick={() => runReconciliation()} disabled={busyAction === "run"}>
-          {busyAction === "run" ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-          {busyAction === "run" ? "Reconciling…" : "Run reconciliation"}
-        </Button>
+        <div className="flex items-center gap-3">
+          {lastSeed != null && (
+            <span className="font-mono text-xs text-muted-foreground">
+              last run · seed <span className="text-foreground">{lastSeed}</span>
+            </span>
+          )}
+          <Button onClick={() => runReconciliation()} disabled={busyAction === "run"}>
+            {busyAction === "run" ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+            {busyAction === "run" ? "Reconciling…" : "Run reconciliation"}
+          </Button>
+        </div>
       </header>
 
       {(error || tieError) && (

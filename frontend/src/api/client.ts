@@ -151,16 +151,18 @@ export const api = {
     request<Settlement[]>(`/settlements?limit=${limit}&offset=${offset}`),
   bankStatement: (limit = 100, offset = 0) =>
     request<BankStatement[]>(`/bank-statement?limit=${limit}&offset=${offset}`),
-  generateData: (seed?: number) =>
-    request<{ seed: number; settlements: number; bank_lines: number }>("/generate-data", {
+  generateData: (seed?: number) => {
+    const qs = seed != null ? `?seed=${seed}` : ""
+    return request<{ seed: number; settlements: number; bank_lines: number }>(`/generate-data${qs}`, {
       method: "POST",
-      body: JSON.stringify(seed != null ? { seed } : {}),
-    }),
-  runReconciliation: (seed?: number) =>
-    request<{ report: RunReport }>("/run-reconciliation", {
+    })
+  },
+  runReconciliation: (seed?: number) => {
+    const qs = seed != null ? `?seed=${seed}` : ""
+    return request<{ report: RunReport }>(`/run-reconciliation${qs}`, {
       method: "POST",
-      body: JSON.stringify(seed != null ? { seed } : {}),
-    }),
+    })
+  },
   aiTiebreaks: () => request<TiebreaksStatus>("/ai-tiebreaks"),
 }
 
