@@ -95,3 +95,33 @@ class ExceptionEventOut(ORMModel):
     resolution_data: Optional[str] = None
     reason_text: Optional[str] = None
     timestamp: datetime
+
+
+# --- Request DTOs (maker/checker) ---
+class ExceptionResolveIn(BaseModel):
+    """Maker proposal. Only proposes; never closes."""
+    maker_id: str
+    action: str  # confirm | reject | override
+    resolution_data: Optional[dict] = None
+
+
+class ExceptionApproveIn(BaseModel):
+    """Checker decision that closes (or re-opens) an exception."""
+    checker_id: str
+    decision: bool
+    reason_text: Optional[str] = None
+
+
+class GenerateResponse(BaseModel):
+    seed: int
+    settlements: int
+    bank_lines: int
+
+
+class RunResponse(BaseModel):
+    report: dict
+
+
+class ScoreResponse(BaseModel):
+    run: dict
+    scorecard: dict

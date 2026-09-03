@@ -5,15 +5,20 @@ settlement net amount matches the bank credit within tolerance. Confidence 100.
 """
 from __future__ import annotations
 
-from backend.app.matcher.__shared__ import (
+from backend.constants import STAGE_EXACT
+from backend.app.matcher.constants import (
     AUTO_HIGH,
-    STAGE_EXACT,
+    DEFAULT_AMOUNT_TOLERANCE_PAISE,
     MatchVerdict,
     amount_close,
 )
 
 
-def exact_match(normalized_settlement: dict, normalized_line: dict, tolerance_paise: int = 100) -> MatchVerdict:
+def exact_match(
+    normalized_settlement: dict,
+    normalized_line: dict,
+    tolerance_paise: int = DEFAULT_AMOUNT_TOLERANCE_PAISE,
+) -> MatchVerdict:
     """Judge whether the settlement exactly matches the bank line.
 
     Telephone-haystack: the UTR must appear verbatim as a substring.

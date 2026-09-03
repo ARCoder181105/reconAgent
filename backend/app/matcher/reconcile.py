@@ -17,23 +17,24 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from backend.app.matcher import batch_match as batch_stage
+from backend.constants import (
+    REASON_BATCH_PARTITION_AMBIGUOUS,
+    REASON_MULTIPLE_CANDIDATES,
+    REASON_NO_CANDIDATE,
+    REASON_UTR_UNRESOLVED,
+    STAGE_AMOUNT_DATE,
+    STAGE_BATCH_SUM,
+    STAGE_EXACT,
+    STAGE_FUZZY_UTR,
+)
+from backend.app.matcher.constants import AUTO_HIGH, AUTO_LOW, REVIEW_LOW
 from backend.app.matcher import fuzzy_match
 from backend.app.matcher import exact_match
 from backend.app.matcher.amount_date_match import amount_date_match
 from backend.app.matcher.batch_match import batch_match
 from backend.app.matcher.normalizer import normalize_bank_line, normalize_settlement
-from backend.app.matcher.__shared__ import (
-    STAGE_AMOUNT_DATE,
-    STAGE_BATCH,
-    STAGE_EXACT,
-    STAGE_FUZZY,
-    AUTO_HIGH,
-    AUTO_LOW,
-    REVIEW_LOW,
-)
 
-REASON_UNAMED_UTR = "UTR_UNRESOLVED"  # review-tier: no UTR corroboration
+REASON_UNAMED_UTR = REASON_UTR_UNRESOLVED  # review-tier: no UTR corroboration
 
 
 @dataclass
@@ -123,7 +124,7 @@ def reconcile(
             # Debit/charge leaf: no Razorpay settlement exists for a charge line.
             exceptions.append(
                 ExceptionRecord(
-                    reason_code="NO_CANDIDATE",
+                    reason_code=REASON_NO_CANDIDATE,
                     line_id=line["line_id"],
                     confidence=100,
                     notes=["bank-side debit with no Razorpay settlement"],
@@ -137,7 +138,7 @@ def reconcile(
     for s in settlements.values():
         exceptions.append(
             ExceptionRecord(
-                reason_code="NO_CANDIDATE",
+                reason_code=REASON_NO_CANDIDATE,
                 settlement_id=s["settlement_id"],
                 confidence=100,
                 notes=["settlement not credited in bank statement"],
@@ -183,12 +184,12 @@ def _process_credit(
     if len(fuzzy_hits) == 1:
         s, v = fuzzy_hits[0]
         settlements.pop(s["settlement_id"])
-        matches.append(ResolvedMatch(s["settlement_id"], line["line_id"], STAGE_FUZZY, v.confidence))
+        matches.append(ResolvedMatch(s["settlement_id"], line["line_id"], STAGE_FUZZY_UTR, v.confidence))
         return
     if len(fuzzy_hits) > 1:
         exceptions.append(
             ExceptionRecord(
-                reason_code="MULTIPLE_CANDIDATES",
+                reason_code=REASON_MULTIPLE_CANDIDATES,
                 line_id=line["line_id"],
                 confidence=_conf_of_best(fuzzy_hits),
                 candidates=[{"settlement_id": s["settlement_id"]} for s, _ in fuzzy_hits],
@@ -203,7 +204,7 @@ def _process_credit(
     if amt_res.status == "ambiguous":
         exceptions.append(
             ExceptionRecord(
-                reason_code="MULTIPLE_CANDIDATES",
+                reason_code=REASON_MULTIPLE_CANDIDATES,
                 line_id=line["line_id"],
                 confidence=REVIEW_LOW,
                 candidates=amt_res.candidates,
@@ -232,7 +233,7 @@ def _process_credit(
     if batch_res.status == "ambiguous":
         exceptions.append(
             ExceptionRecord(
-                reason_code="BATCH_PARTITION_AMBIGUOUS",
+                reason_code=REASON_BATCH_PARTITION_AMBIGUOUS,
                 line_id=line["line_id"],
                 confidence=REVIEW_LOW,
                 notes=batch_res.notes,
@@ -243,7 +244,7 @@ def _process_credit(
         ids = batch_res.settlement_ids
         for sid in ids:
             settlements.pop(sid, None)
-            matches.append(ResolvedMatch(sid, line["line_id"], STAGE_BATCH, batch_res.confidence))
+            matches.append(ResolvedMatch(sid, line["line_id"], STAGE_BATCH_SUM, batch_res.confidence))
         exceptions.append(
             ExceptionRecord(
                 reason_code=REASON_UNAMED_UTR,
@@ -271,10 +272,10 @@ def _process_credit(
 
 def _unresolved_code(line: dict) -> str:
     # If a UTR-like token exists but didn't resolve, the UTR is the culprit.
-    from backend.app.matcher.__shared__ import UTR_TOKEN_RE
+    from backend.app.matcher.constants import UTR_TOKEN_RE
 
     blob = f"{line.get('description', '')} {line.get('ref_no', '')}"
-    return "UTR_UNRESOLVED" if UTR_TOKEN_RE.search(blob) else "NO_CANDIDATE"
+    return REASON_UTR_UNRESOLVED if UTR_TOKEN_RE.search(blob) else REASON_NO_CANDIDATE
 
 
 def _is_unique_exact(hit, settlements: dict, line: dict, tolerance_paise: int) -> bool:

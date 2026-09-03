@@ -14,14 +14,16 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date
 
-from backend.app.matcher.__shared__ import (
+from backend.constants import STAGE_AMOUNT_DATE
+from backend.app.matcher.constants import (
+    DEFAULT_AMOUNT_TOLERANCE_PAISE,
+    DEFAULT_WINDOW_BUSINESS_DAYS,
     REVIEW_HIGH,
-    STAGE_AMOUNT_DATE,
     amount_close,
     within_business_days,
 )
 
-DATE_WINDOW_BUSINESS_DAYS = 2
+DATE_WINDOW_BUSINESS_DAYS = DEFAULT_WINDOW_BUSINESS_DAYS
 
 
 @dataclass
@@ -50,7 +52,7 @@ def _parse_date(value: str) -> date:
 def amount_date_match(
     normalized_line: dict,
     candidate_settlements: list[dict],
-    tolerance_paise: int = 100,
+    tolerance_paise: int = DEFAULT_AMOUNT_TOLERANCE_PAISE,
     window_days: int = DATE_WINDOW_BUSINESS_DAYS,
 ) -> AmountDateResult:
     """Match a bank line against the settlement candidate pool by amount+date."""
@@ -97,6 +99,6 @@ def amount_date_match(
 
 
 def _business_days(d1: date, d2: date) -> int:
-    from backend.app.matcher.__shared__ import business_days_between
+    from backend.utils.dates import business_days_between
 
     return business_days_between(d1, d2)

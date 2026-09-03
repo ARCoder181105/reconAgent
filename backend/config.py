@@ -11,6 +11,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from backend.constants import DEFAULT_GEMINI_MODEL
+
 # Repo root is two levels above this module (backend/config.py -> repo root).
 REPO_ROOT = Path(__file__).resolve().parents[1]
 BACKEND_ROOT = REPO_ROOT / "backend"
@@ -28,7 +30,7 @@ class Settings:
 
     # LLM (Stage 5)
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-2.0-flash"
+    gemini_model: str = DEFAULT_GEMINI_MODEL
 
     # Data generator
     seed: int = 42
@@ -60,7 +62,7 @@ def load_settings() -> Settings:
     load_dotenv(_env_path())
     return Settings(
         gemini_api_key=os.getenv("GEMINI_API_KEY", ""),
-        gemini_model=os.getenv("GEMINI_MODEL", "gemini-2.0-flash"),
+        gemini_model=os.getenv("GEMINI_MODEL", DEFAULT_GEMINI_MODEL),
         seed=int(os.getenv("RECON_SEED", "42")),
         batch_size=int(os.getenv("RECON_BATCH_SIZE", "60")),
         db_path=Path(os.getenv("RECON_DB_PATH", "backend/data/recon.sqlite3")),

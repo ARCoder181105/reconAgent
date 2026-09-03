@@ -4,9 +4,9 @@ from __future__ import annotations
 from backend.app.matcher.normalizer import (
     normalize_bank_line,
     normalize_settlement,
-    parse_date,
-    rupees_to_paise,
 )
+from backend.utils.dates import parse_date
+from backend.utils.money import rupees_to_paise
 
 
 def test_parse_date_mixed_formats():

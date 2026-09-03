@@ -17,12 +17,13 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date
 
-from backend.app.matcher.__shared__ import (
+from backend.app.matcher.constants import (
+    DEFAULT_AMOUNT_TOLERANCE_PAISE,
+    DEFAULT_WINDOW_BUSINESS_DAYS,
     REVIEW_HIGH,
-    STAGE_BATCH,
 )
 
-DATE_WINDOW_BUSINESS_DAYS = 2
+DATE_WINDOW_BUSINESS_DAYS = DEFAULT_WINDOW_BUSINESS_DAYS
 
 
 @dataclass
@@ -40,7 +41,7 @@ def _bank_date(normalized_line: dict) -> date:
 
 
 def within_window(normalized_line: dict, settlement: dict, window_days: int) -> bool:
-    from backend.app.matcher.__shared__ import within_business_days
+    from backend.utils.dates import within_business_days
 
     bank_d = _bank_date(normalized_line)
     s_date = date.fromisoformat(settlement.get("settlement_date"))
@@ -86,7 +87,7 @@ def _find_partitions(
 def batch_match(
     normalized_line: dict,
     candidate_settlements: list[dict],
-    tolerance_paise: int = 100,
+    tolerance_paise: int = DEFAULT_AMOUNT_TOLERANCE_PAISE,
     window_days: int = DATE_WINDOW_BUSINESS_DAYS,
 ) -> BatchResult:
     """Attempt a many-to-one batch match for the bank line."""
