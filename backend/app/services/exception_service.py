@@ -31,6 +31,20 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _pending_maker_id(db: Session, exception_id: int) -> str | None:
+    """Return the maker_id of the most recent MAKER_PROPOSED event."""
+    event = (
+        db.query(models.ExceptionEvent)
+        .filter(
+            models.ExceptionEvent.exception_id == exception_id,
+            models.ExceptionEvent.event_type == EV_MAKER_PROPOSED,
+        )
+        .order_by(models.ExceptionEvent.timestamp.desc(), models.ExceptionEvent.event_id.desc())
+        .first()
+    )
+    return event.maker_id if event is not None else None
+
+
 def get_exception(db: Session, exception_id: int) -> models.Exception:
     exc = db.get(models.Exception, exception_id)
     if exc is None:
@@ -74,6 +88,13 @@ def approve(db: Session, exception_id: int, checker_id: str, decision: bool, rea
     exc = get_exception(db, exception_id)
     if exc.status != "pending_approval":
         raise HTTPException(status_code=409, detail="nothing pending approval for this exception")
+
+    maker_id = _pending_maker_id(db, exception_id)
+    if maker_id is not None and maker_id == checker_id:
+        raise HTTPException(
+            status_code=409,
+            detail="checker cannot approve/reject their own maker proposal (segregation of duties)",
+        )
 
     event_type = EV_CHECKER_APPROVED if decision else EV_CHECKER_REJECTED
     db.add(

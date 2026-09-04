@@ -136,6 +136,36 @@ def test_approve_without_pending_is_conflict(client):
     assert r.status_code == 409
 
 
+def test_checker_cannot_approve_own_proposal_segregation_of_duties(client):
+    """The person who proposed (maker) must not approve their own work."""
+    client.post("/api/run-reconciliation", params={"seed": 42})
+    excs = client.get("/api/exceptions", params={"status": "open"}).json()
+    candidate = next(e for e in excs if e["settlement_id"] and e["line_id"])
+    exc_id = candidate["exception_id"]
+
+    r = client.post(
+        f"/api/exceptions/{exc_id}/resolve",
+        json={"maker_id": "alice", "action": "confirm"},
+    )
+    assert r.status_code == 200
+    assert r.json()["status"] == "pending_approval"
+
+    # same person tries to approve their own proposal -> rejected
+    r = client.post(
+        f"/api/exceptions/{exc_id}/approve",
+        json={"checker_id": "alice", "decision": True},
+    )
+    assert r.status_code == 409
+
+    # still pending; a different checker can approve
+    r = client.post(
+        f"/api/exceptions/{exc_id}/approve",
+        json={"checker_id": "bob", "decision": True},
+    )
+    assert r.status_code == 200
+    assert r.json()["status"] == "closed"
+
+
 def test_score_endpoint(client):
     r = client.get("/api/score", params={"seed": 42})
     assert r.status_code == 200, r.text
