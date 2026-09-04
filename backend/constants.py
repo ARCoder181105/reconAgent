@@ -9,6 +9,10 @@ from __future__ import annotations
 # --- Default LLM model for Stage 5 (overridable via GEMINI_MODEL env) ---
 DEFAULT_GEMINI_MODEL = "gemini-3.8-flash"
 
+# --- Local Ollama defaults (for LLM_PROVIDER=ollama) ---
+DEFAULT_OLLAMA_MODEL = "qwen2.5:1.5b"
+DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434"
+
 # --- Cross-cutting numeric defaults (previously hardcoded in config/eval) ---
 DEFAULT_SEED = 42
 DEFAULT_BATCH_SIZE = 60
