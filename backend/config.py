@@ -16,6 +16,8 @@ from backend.constants import (
     DEFAULT_FP_WEIGHT,
     DEFAULT_GEMINI_MODEL,
     DEFAULT_SEED,
+    DEFAULT_OLLAMA_BASE_URL,
+    DEFAULT_OLLAMA_MODEL,
 )
 
 # Repo root is two levels above this module (backend/config.py -> repo root).
@@ -34,6 +36,9 @@ class Settings:
     repo_root: Path = field(default_factory=lambda: REPO_ROOT)
 
     # LLM (Stage 5)
+    llm_provider: str = "gemini"
+    ollama_base_url: str = DEFAULT_OLLAMA_BASE_URL
+    ollama_model: str = DEFAULT_OLLAMA_MODEL
     gemini_api_key: str = ""
     gemini_model: str = DEFAULT_GEMINI_MODEL
 
@@ -69,6 +74,9 @@ def load_settings() -> Settings:
     """Load .env if present, then build a Settings instance from the environment."""
     load_dotenv(_env_path())
     return Settings(
+        llm_provider=os.getenv("LLM_PROVIDER", "gemini"),
+        ollama_base_url=os.getenv("OLLAMA_BASE_URL", DEFAULT_OLLAMA_BASE_URL),
+        ollama_model=os.getenv("OLLAMA_MODEL", DEFAULT_OLLAMA_MODEL),
         gemini_api_key=os.getenv("GEMINI_API_KEY", ""),
         gemini_model=os.getenv("GEMINI_MODEL", DEFAULT_GEMINI_MODEL),
         seed=int(os.getenv("RECON_SEED", str(DEFAULT_SEED))),

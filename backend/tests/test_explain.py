@@ -349,20 +349,24 @@ class TestBuildExplainPrompt:
 class FakeGeminiClient:
     """Minimal fake that returns a canned response."""
 
-    def __init__(self, response_text: str):
-        self._response = response_text
-
-    class _Models:
+    class _Chats:
         def __init__(self, text):
             self._text = text
 
-        def generate_content(self, **kwargs):
+        def create(self, **kwargs):
+            return FakeGeminiClient._ChatSession(self._text)
+
+    class _ChatSession:
+        def __init__(self, text):
+            self._text = text
+
+        def send_message(self, prompt):
             result = MagicMock()
             result.text = self._text
             return result
 
     def __init__(self, response_text: str):
-        self.models = self._Models(response_text)
+        self.chats = self._Chats(response_text)
 
 
 class TestExplainWithLLM:
@@ -394,9 +398,15 @@ class TestExplainWithLLM:
 
     def test_api_exception_returns_fallback(self):
         class BrokenClient:
-            class models:
-                @staticmethod
-                def generate_content(**kwargs):
+            def __init__(self):
+                self.chats = self._Chats()
+
+            class _Chats:
+                def create(self, **kwargs):
+                    return BrokenClient._ChatSession()
+
+            class _ChatSession:
+                def send_message(self, prompt):
                     raise ConnectionError("API down")
 
         result = explain_with_llm(
@@ -440,7 +450,7 @@ class TestParseExplainResponse:
 
 def _make_fake_gen_factory(response_text: str):
     """Return a gen_factory callable that produces a fake Gemini client."""
-    def _factory(api_key: str):
+    def _factory(api_key: str, provider: str = "", base_url: str = ""):
         return FakeGeminiClient(response_text)
     return _factory
 
@@ -460,7 +470,7 @@ class TestExplainEndpoint:
         from backend.app.services import llm_queue
         monkeypatch.setattr(
             llm_queue, "_default_gen_client",
-            lambda key: FakeGeminiClient(fake_response),
+            lambda key, provider="", base_url="": FakeGeminiClient(fake_response),
         )
 
         r = client.post(f"/api/exceptions/{exc['exception_id']}/explain")
@@ -477,7 +487,7 @@ class TestExplainEndpoint:
         fake_response = '{"summary": "First call result.", "notes": ""}'
         call_count = {"n": 0}
 
-        def counting_factory(key):
+        def counting_factory(key, provider="", base_url=""):
             call_count["n"] += 1
             return FakeGeminiClient(fake_response)
 
@@ -499,15 +509,19 @@ class TestExplainEndpoint:
         exc = self._setup_exception(client)
 
         class FailFactory:
-            def __init__(self, key):
-                pass
-            class models:
-                @staticmethod
-                def generate_content(**kwargs):
+            def __init__(self, key, provider="", base_url=""):
+                self.chats = self._Chats()
+            
+            class _Chats:
+                def create(self, **kwargs):
+                    return FailFactory._ChatSession()
+
+            class _ChatSession:
+                def send_message(self, prompt):
                     raise RuntimeError("boom")
 
         from backend.app.services import llm_queue
-        monkeypatch.setattr(llm_queue, "_default_gen_client", lambda key: FailFactory(key))
+        monkeypatch.setattr(llm_queue, "_default_gen_client", lambda key, provider="", base_url="": FailFactory(key))
 
         r = client.post(f"/api/exceptions/{exc['exception_id']}/explain")
         assert r.status_code == 200
@@ -528,7 +542,7 @@ class TestExplainEndpoint:
         from backend.app.services import llm_queue
         monkeypatch.setattr(
             llm_queue, "_default_gen_client",
-            lambda key: FakeGeminiClient('{"summary": "bulk result", "notes": ""}'),
+            lambda key, provider="", base_url="": FakeGeminiClient('{"summary": "bulk result", "notes": ""}'),
         )
 
         r = client.post("/api/exceptions/explain", json={"ids": ids})

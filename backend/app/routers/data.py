@@ -15,14 +15,15 @@ from backend.config import settings
 router = APIRouter(prefix=API_PREFIX, tags=[TAG_DATA])
 
 # It8: process-wide async LLM tie-break queue, bound to the real (file) DB.
-# Created only when a Gemini key is configured; otherwise None so no background
-# thread is ever spawned (e.g. in tests / local runs without an API key).
+# Created only when a Gemini key is configured or provider is Ollama; otherwise None.
 _tiebreak_queue: TiebreakQueue | None = (
     TiebreakQueue(
         api_key=settings.gemini_api_key,
-        model=settings.gemini_model,
+        model=settings.gemini_model if settings.llm_provider == "gemini" else settings.ollama_model,
+        provider=settings.llm_provider,
+        base_url=settings.ollama_base_url,
     )
-    if settings.gemini_api_key
+    if settings.gemini_api_key or settings.llm_provider == "ollama"
     else None
 )
 

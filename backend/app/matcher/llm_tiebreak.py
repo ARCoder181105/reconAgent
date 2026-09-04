@@ -7,7 +7,7 @@ own (see ``constraints.md``).
 
 This module is deliberately decoupled from the SDK so it can be unit-tested with
 a fake client. ``run_tiebreak`` expects a duck-typed Gemini client exposing
-``client.models.generate_content(...)``; the SDK adapter
+``client.chats.create(...)``; the SDK adapter
 ``make_gemini_client``/``run_tiebreak`` wiring is in ``llm_queue.py``.
 """
 from __future__ import annotations
@@ -147,20 +147,20 @@ def fallback_decision() -> LLMDecision:
 def run_tiebreak(client, line: dict, candidates: list[dict], model: str) -> LLMDecision:
     """Invoke Gemini with structured output, then strictly parse.
 
-    ``client`` is a duck-typed object with ``client.models.generate_content``.
+    ``client`` is a duck-typed object with ``client.chats.create``.
     Any API exception, timeout, or parse failure degrades to ``fallback_decision``
     so the pipeline never crashes or silently breaks.
     """
     prompt = build_tiebreak_prompt(line, candidates)
     try:
-        resp = client.models.generate_content(
+        chat = client.chats.create(
             model=model,
-            contents=prompt,
             config={
                 "response_mime_type": "application/json",
                 "response_schema": _response_schema(),
             },
         )
+        resp = chat.send_message(prompt)
         text = resp.text if hasattr(resp, "text") else str(resp)
         decision = parse_tiebreak_response(text)
         return decision if decision is not None else fallback_decision()

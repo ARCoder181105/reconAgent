@@ -271,14 +271,14 @@ def explain_with_llm(client, deterministic: str, reason_code: str,
     """
     prompt = build_explain_prompt(deterministic, reason_code, candidates, confidence)
     try:
-        resp = client.models.generate_content(
+        chat = client.chats.create(
             model=model,
-            contents=prompt,
             config={
                 "response_mime_type": "application/json",
                 "response_schema": _explain_response_schema(),
             },
         )
+        resp = chat.send_message(prompt)
         text = resp.text if hasattr(resp, "text") else str(resp)
         parsed = _parse_explain_response(text)
         if parsed is not None:

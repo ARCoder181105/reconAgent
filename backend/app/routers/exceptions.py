@@ -223,10 +223,15 @@ def explain_single(exception_id: int, db: Session = Depends(get_session)):
     from backend.config import settings
     from backend.app.services.llm_queue import _default_gen_client
 
-    client = _default_gen_client(settings.gemini_api_key)
+    client = _default_gen_client(
+        settings.gemini_api_key,
+        provider=settings.llm_provider,
+        base_url=settings.ollama_base_url
+    )
+    model = settings.gemini_model if settings.llm_provider == "gemini" else settings.ollama_model
     ai = explain_with_llm(
         client, deterministic, exc.reason_code, candidates, exc.confidence,
-        settings.gemini_model,
+        model,
     )
 
     # Persist as event (cache).
@@ -266,7 +271,12 @@ def explain_bulk(payload: schemas.ExplainIn, db: Session = Depends(get_session))
     from backend.config import settings
     from backend.app.services.llm_queue import _default_gen_client
 
-    client = _default_gen_client(settings.gemini_api_key)
+    client = _default_gen_client(
+        settings.gemini_api_key,
+        provider=settings.llm_provider,
+        base_url=settings.ollama_base_url
+    )
+    model = settings.gemini_model if settings.llm_provider == "gemini" else settings.ollama_model
     results = []
     for eid in payload.ids:
         exc = db.get(models.Exception, eid)
@@ -322,7 +332,7 @@ def explain_bulk(payload: schemas.ExplainIn, db: Session = Depends(get_session))
 
         ai = explain_with_llm(
             client, deterministic, exc.reason_code, candidates, exc.confidence,
-            settings.gemini_model,
+            model,
         )
 
         from datetime import datetime, timezone

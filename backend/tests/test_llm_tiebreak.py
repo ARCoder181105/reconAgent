@@ -35,23 +35,28 @@ class _FakeClient:
         self.text = text
         self.calls = []
         self.error: Exception | None = None
-        self.models = _FakeModels(self)
-
-    def generate_content(self, *, model, contents, config=None):
-        self.calls.append({"model": model, "contents": contents, "config": config})
-        if self.error is not None:
-            raise self.error
-        return _FakeResponse(self.text)
+        self.chats = _FakeChats(self)
 
 
-class _FakeModels:
-    """Mirrors `client.models` so run_tiebreak's SDK-style call works."""
-
+class _FakeChats:
     def __init__(self, owner):
         self._owner = owner
 
-    def generate_content(self, *, model, contents, config=None):
-        return self._owner.generate_content(model=model, contents=contents, config=config)
+    def create(self, *, model, config=None):
+        return _FakeChatSession(self._owner, model, config)
+
+
+class _FakeChatSession:
+    def __init__(self, owner, model, config):
+        self._owner = owner
+        self.model = model
+        self.config = config
+
+    def send_message(self, prompt):
+        self._owner.calls.append({"model": self.model, "contents": prompt, "config": self.config})
+        if self._owner.error is not None:
+            raise self._owner.error
+        return _FakeResponse(self._owner.text)
 
 
 _LINE = {
@@ -237,7 +242,7 @@ def test_queues_drains_and_persists_event_but_does_not_close():
         api_key="",
         model="fake-model",
         run_fn=fake_run,
-        gen_factory=lambda key: object(),  # dummy client; fake_run doesn't use it
+        gen_factory=lambda key, provider="", base_url="": object(),  # dummy client; fake_run doesn't use it
         session_factory=worker_factory,
     )
     queue.enqueue(
@@ -321,7 +326,7 @@ def test_client_construction_failure_persists_fallback_not_stranded():
     id_a = add_exc("bl_a")
     id_b = add_exc("bl_b")
 
-    def boom_factory(api_key):
+    def boom_factory(api_key, provider="", base_url=""):
         raise RuntimeError("bad GEMINI_API_KEY")
 
     queue = TiebreakQueue(

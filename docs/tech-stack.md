@@ -15,8 +15,8 @@
 
 | Layer | Choice | Version | Why |
 |---|---|---|---|
-| Provider | Google Gemini | free tier | Hackathon-accessible, JSON schema support via structured output |
-| Structured output | Gemini `json` mode | SDK latest | Forces fixed `{match, confidence, reasoning}` schema — no chatty text to break the parser |
+| Provider | Google Gemini / Local Ollama | free tier / local | Hackathon-accessible, JSON schema support via structured output. Ollama supported as a local alternative. |
+| Structured output | Gemini `json` mode / Ollama `format=json` | SDK latest | Forces fixed `{match, confidence, reasoning}` schema — no chatty text to break the parser |
 | Execution | async background queue | n/a | Decoupled so Stages 1–4 stay at millisecond throughput (D5) |
 
 ## Backend / API

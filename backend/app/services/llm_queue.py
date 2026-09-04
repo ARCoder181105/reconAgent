@@ -51,12 +51,16 @@ class TiebreakQueue:
         *,
         api_key: str,
         model: str,
+        provider: str = "gemini",
+        base_url: str = "",
         run_fn=None,
         gen_factory=None,
         session_factory=None,
     ) -> None:
         self.api_key = api_key
         self.model = model
+        self.provider = provider
+        self.base_url = base_url
         self._run_fn = run_fn or _default_run
         self._gen_factory = gen_factory or _default_gen_client
         self._session_factory = session_factory or SessionLocal
@@ -101,7 +105,7 @@ class TiebreakQueue:
                 task = self._tasks.pop(0)
             try:
                 if client is None:
-                    client = self._gen_factory(self.api_key)
+                    client = self._gen_factory(self.api_key, self.provider, self.base_url)
                 decision = self._run_fn(client, task, self.model)
                 self._persist(task, decision)
                 with self._lock:
@@ -179,7 +183,50 @@ def _dump_json(obj) -> str:
     return json.dumps(obj, default=str)
 
 
-def _default_gen_client(api_key: str):
+class OllamaClient:
+    """Duck-typed client for local Ollama via the chats API."""
+    def __init__(self, base_url: str):
+        self.base_url = base_url.rstrip("/")
+        self.chats = self._Chats(self)
+
+    class _Chats:
+        def __init__(self, client):
+            self.client = client
+
+        def create(self, model: str, config: dict | None = None):
+            return OllamaClient._ChatSession(self.client, model, config)
+
+    class _ChatSession:
+        def __init__(self, client, model: str, config: dict | None):
+            self.client = client
+            self.model = model
+            self.config = config or {}
+
+        def send_message(self, prompt: str):
+            import httpx
+            payload = {
+                "model": self.model,
+                "prompt": prompt,
+                "stream": False,
+            }
+            if self.config.get("response_mime_type") == "application/json":
+                payload["format"] = "json"
+
+            with httpx.Client(timeout=60.0) as http:
+                resp = http.post(f"{self.client.base_url}/api/generate", json=payload)
+                resp.raise_for_status()
+                data = resp.json()
+
+            class _FakeResponse:
+                def __init__(self, text):
+                    self.text = text
+
+            return _FakeResponse(data.get("response", ""))
+
+
+def _default_gen_client(api_key: str, provider: str = "gemini", base_url: str = ""):
+    if provider == "ollama":
+        return OllamaClient(base_url)
     from google.genai import Client
 
     if api_key:
