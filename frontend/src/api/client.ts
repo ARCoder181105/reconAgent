@@ -61,6 +61,7 @@ export interface Match {
   stage: string
   confidence: number
   resolved_at: string
+  net_ok: boolean
 }
 
 export interface Candidate {

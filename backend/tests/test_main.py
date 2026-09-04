@@ -242,3 +242,18 @@ def test_broadcast_bus():
         assert msg["data"]["key"] == "value"
     finally:
         _unregister(lid)
+
+
+def test_matches_include_net_ok(client):
+    """Each match carries a passive net_ok flag from the settlement fee math."""
+    client.post("/api/run-reconciliation", params={"seed": 42})
+    matches = client.get("/api/matches").json()
+    assert len(matches) > 0
+    for m in matches:
+        assert "net_ok" in m
+        assert isinstance(m["net_ok"], bool)
+    # Synthetic data produces a mix: some settlements have consistent fee math,
+    # others have intentionally messy data. Both True and False are valid.
+    has_true = any(m["net_ok"] for m in matches)
+    has_false = any(not m["net_ok"] for m in matches)
+    assert has_true and has_false, "expected a mix of net_ok True and False in synthetic data"

@@ -52,6 +52,7 @@ class MatchOut(ORMModel):
     stage: str
     confidence: int
     resolved_at: datetime
+    net_ok: bool = True  # passive: does gross - fees - tax_gst ≈ net_amount?
 
 
 # --- Exception ---

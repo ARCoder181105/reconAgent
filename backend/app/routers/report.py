@@ -118,4 +118,34 @@ def list_matches(stage: str | None = None, min_conf: int | None = None, db: Sess
         q = q.filter(models.Match.stage == stage)
     if min_conf is not None:
         q = q.filter(models.Match.confidence >= min_conf)
-    return q.order_by(models.Match.match_id).all()
+
+    matches = q.order_by(models.Match.match_id).all()
+
+    # Pre-fetch settlement fee breakdowns so net_ok can be computed in one
+    # pass without N+1 queries.
+    settlement_ids = {m.settlement_id for m in matches}
+    settlements = {
+        s.settlement_id: s
+        for s in db.query(models.Settlement).filter(models.Settlement.settlement_id.in_(settlement_ids)).all()
+    }
+
+    results: list[schemas.MatchOut] = []
+    for m in matches:
+        s = settlements.get(m.settlement_id)
+        net_ok = _check_net_ok(s) if s else True
+        out = schemas.MatchOut.model_validate(m)
+        out.net_ok = net_ok
+        results.append(out)
+    return results
+
+
+def _check_net_ok(s: models.Settlement) -> bool:
+    """Passive check: does gross - fees - tax_gst ≈ net_amount (±₹1)?"""
+    if s.gross_amount is None or s.net_amount is None:
+        return True  # can't verify, assume ok
+    fees = s.fees or 0
+    tax = s.tax_gst or 0
+    refunds = s.refunds_deducted or 0
+    adj = s.adjustments or 0
+    expected = s.gross_amount - fees - tax + refunds + adj
+    return abs(expected - s.net_amount) <= 1  # ±1 paise tolerance

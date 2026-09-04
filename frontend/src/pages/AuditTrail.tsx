@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Input } from "@/components/ui/input"
+import { CheckCircle2, AlertTriangle } from "lucide-react"
 
 const STAGES = ["all", "exact", "fuzzy_utr", "amount_date", "batch_sum", "llm_tiebreak"] as const
 
@@ -95,13 +96,14 @@ export function AuditTrail() {
                 <TableHead>Settlement</TableHead>
                 <TableHead>Bank line</TableHead>
                 <TableHead className="text-right">Confidence</TableHead>
+                <TableHead>Net</TableHead>
                 <TableHead>Resolved</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {rows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="py-8 text-center text-sm text-muted-foreground">
+                  <TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">
                     No matches for these filters. Run reconciliation first.
                   </TableCell>
                 </TableRow>
@@ -117,6 +119,13 @@ export function AuditTrail() {
                   <TableCell className="font-mono text-xs">{m.line_id}</TableCell>
                   <TableCell className="text-right">
                     <span className="font-tabular">{m.confidence}</span>
+                  </TableCell>
+                  <TableCell>
+                    {m.net_ok ? (
+                      <CheckCircle2 className="h-4 w-4 text-emerald-500" aria-label="Fee math OK" />
+                    ) : (
+                      <AlertTriangle className="h-4 w-4 text-amber-500" aria-label="Fee mismatch" />
+                    )}
                   </TableCell>
                   <TableCell className="font-mono text-xs text-muted-foreground">{m.resolved_at}</TableCell>
                 </TableRow>
