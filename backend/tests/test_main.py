@@ -150,12 +150,13 @@ def test_checker_cannot_approve_own_proposal_segregation_of_duties(client):
     assert r.status_code == 200
     assert r.json()["status"] == "pending_approval"
 
-    # same person tries to approve their own proposal -> rejected
+    # same person tries to approve their own proposal -> 403 + clear reason
     r = client.post(
         f"/api/exceptions/{exc_id}/approve",
         json={"checker_id": "alice", "decision": True},
     )
-    assert r.status_code == 409
+    assert r.status_code == 403
+    assert "cannot approve their own proposal" in r.json()["detail"]
 
     # still pending; a different checker can approve
     r = client.post(

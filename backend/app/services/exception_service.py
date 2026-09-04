@@ -92,8 +92,8 @@ def approve(db: Session, exception_id: int, checker_id: str, decision: bool, rea
     maker_id = _pending_maker_id(db, exception_id)
     if maker_id is not None and maker_id == checker_id:
         raise HTTPException(
-            status_code=409,
-            detail="checker cannot approve/reject their own maker proposal (segregation of duties)",
+            status_code=403,
+            detail="checker cannot approve their own proposal (segregation of duties)",
         )
 
     event_type = EV_CHECKER_APPROVED if decision else EV_CHECKER_REJECTED
