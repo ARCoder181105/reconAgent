@@ -93,8 +93,9 @@
 ## ⚡ One-Command Setup (Docker Compose)
 
 ### Prerequisites
-- Docker 24+ & Docker Compose v2
+- Docker 24+ & Docker Compose v2 (the `docker compose` subcommand, **not** the older standalone `docker-compose` v1 binary — this compose file uses `depends_on: condition: service_healthy`, which v1 doesn't support)
 - 4 GB RAM minimum (for Ollama model)
+- **No GPU required.** Ollama runs on CPU by default here so the stack works out of the box everywhere. If you have an NVIDIA GPU with the NVIDIA Container Toolkit installed, see [GPU acceleration](#gpu-acceleration-optional) below.
 
 ### Quick Start — Everything Runs by Default
 
@@ -108,18 +109,35 @@ cp .env.example .env
 
 # 3. Build and start ALL services (backend :8000, Ollama :11434, frontend :5173)
 #    → Uses LOCAL Ollama by default, auto-pulls qwen2.5:1.5b (~1.5 GB)
-docker-compose up --build
+docker compose up --build
 ```
 
-### LLM Provider Selection (Choose at Runtime)
+The first run downloads the `qwen2.5:1.5b` model (~1.5 GB) inside the `ollama` container — that can take a few minutes depending on your connection. Watch progress with `docker compose logs -f ollama`; the backend will wait for it (`depends_on: condition: service_healthy`) before starting.
 
-| Mode | Command | Description |
+### LLM Provider Selection
+
+Set these in your `.env` file, then run `docker compose up --build` — **`docker compose up` has no `-e` flag** (that only exists on `docker compose run`), so passing `-e VAR=val` to `up` will fail with "unknown flag."
+
+| Mode | `.env` setting | Description |
 |------|---------|-------------|
-| **Local (default)** | `docker-compose up --build` | Uses Ollama container, auto-pulls `qwen2.5:1.5b`, fully offline |
-| **Cloud (Gemini)** | `docker-compose up --build -e LLM_PROVIDER=gemini -e GEMINI_API_KEY=your_key` | Skips Ollama model pull, uses Google Gemini API |
-| **Custom Ollama model** | `docker-compose up --build -e OLLAMA_MODEL=llama3.2:3b` | Pulls your chosen model instead |
+| **Local (default)** | `LLM_PROVIDER=ollama` | Uses Ollama container, auto-pulls `qwen2.5:1.5b`, fully offline |
+| **Cloud (Gemini)** | `LLM_PROVIDER=gemini` + `GEMINI_API_KEY=your_key` | Skips Ollama model pull, uses Google Gemini API |
+| **Custom Ollama model** | `OLLAMA_MODEL=llama3.2:3b` | Pulls your chosen model instead |
 
-> **No code changes needed** — switch providers via environment variables at `docker-compose up` time.
+> **No code changes needed** — switch providers by editing `.env` and re-running `docker compose up --build`.
+>
+> If you'd rather not edit `.env` for a one-off run, on **Linux/macOS (bash/zsh)** you can prefix the variables directly on the command line instead:
+> ```bash
+> LLM_PROVIDER=gemini GEMINI_API_KEY=your_key docker compose up --build
+> ```
+> On **Windows PowerShell**, use:
+> ```powershell
+> $env:LLM_PROVIDER="gemini"; $env:GEMINI_API_KEY="your_key"; docker compose up --build
+> ```
+
+### GPU Acceleration (optional)
+
+By default the `ollama` service runs on CPU — this is deliberate, because a hard-coded GPU requirement is the most common reason this stack fails to start (Docker Desktop on Mac/Windows, and most laptops, don't have an NVIDIA GPU passthrough set up, so `docker compose up` errors out trying to create the `ollama` container). If you do have an NVIDIA GPU and the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) installed, uncomment the `gpus: all` line under the `ollama` service in `docker-compose.yml` for faster inference.
 
 ### What Happens on Startup
 
@@ -202,7 +220,7 @@ curl -X POST http://localhost:8000/api/exceptions/<EXCEPTION_ID>/approve \
 
 ```bash
 # Inside the container (recommended)
-docker-compose exec reconagent python scripts/demo.py --seed 42
+docker compose exec reconagent python scripts/demo.py --seed 42
 
 # Or locally if you have the venv
 source .venv/bin/activate
@@ -228,7 +246,7 @@ python scripts/demo.py --seed 42
 ### 6. Multi-Seed Robustness Check
 
 ```bash
-docker-compose exec reconagent python scripts/demo.py --multi 10
+docker compose exec reconagent python scripts/demo.py --multi 10
 # Runs seeds 1..10, reports mean ± stdev for all metrics
 ```
 
@@ -283,7 +301,7 @@ CREATE TABLE exception_events (
 ```
 ReconAgent/
 ├── Dockerfile                    # Backend production image
-├── docker-compose.yml            # Orchestration (API + Ollama + optional Frontend)
+├── docker-compose.yml            # Orchestration (API + Ollama + Frontend)
 ├── frontend/Dockerfile.frontend  # Frontend dev image
 ├── .env.example                  # Environment template (copy to .env)
 ├── requirements.txt              # Python deps (pinned compatible ranges)
@@ -338,15 +356,29 @@ ReconAgent/
 
 ## 🚀 For Hackathon Reviewers — Quick Verification Checklist
 
-- [ ] `docker-compose up --build` starts all 3 services cleanly (API :8000, Ollama :11434, Frontend :5173)
-- [ ] Ollama auto-pulls `qwen2.5:1.5b` on first run (check `docker-compose logs ollama`)
-- [ ] `docker-compose exec reconagent python scripts/demo.py --seed 42` prints **Penalized: 1.000**
+- [ ] `docker compose up --build` starts all 3 services cleanly (API :8000, Ollama :11434, Frontend :5173)
+- [ ] Ollama auto-pulls `qwen2.5:1.5b` on first run (check `docker compose logs -f ollama`)
+- [ ] `docker compose exec reconagent python scripts/demo.py --seed 42` prints **Penalized: 1.000**
 - [ ] `curl localhost:8000/api/report` shows `match_rate > 0.75`, `exception_rate > 0`
 - [ ] `curl localhost:8000/api/exceptions` returns array with `reason_code`, `confidence`, `candidates`
 - [ ] Maker→Checker flow via `/resolve` + `/approve` increments `verified_rate`
 - [ ] `curl localhost:8000/api/score` returns per-stage breakdown matching demo output
 - [ ] Frontend loads at `localhost:5173`, shows Summary + Exception Queue tabs
-- [ ] **Switch to Gemini**: `docker-compose down && docker-compose up --build -e LLM_PROVIDER=gemini -e GEMINI_API_KEY=your_key` — works without Ollama
+- [ ] **Switch to Gemini**: set `LLM_PROVIDER=gemini` and `GEMINI_API_KEY=your_key` in `.env`, then `docker compose down && docker compose up --build` — works without Ollama
+
+---
+
+## 🔧 Troubleshooting
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `docker compose up` fails immediately on the `ollama` service with a "could not select device driver" error | `gpus: all` is set but you don't have an NVIDIA GPU + NVIDIA Container Toolkit | Leave the `gpus: all` line commented out (it's optional — see [GPU acceleration](#gpu-acceleration-optional)) |
+| `reconagent` never starts, seems stuck waiting | It's waiting on `ollama`'s healthcheck, which can take minutes on first run while the model downloads | `docker compose logs -f ollama` to watch the pull; be patient, or pre-pull with `docker compose run --rm ollama ollama pull qwen2.5:1.5b` |
+| `unknown flag: -e` when running `docker compose up -e ...` | `-e` isn't a valid flag on `up` | Put the variable in `.env`, or prefix it on the command line (see [LLM Provider Selection](#llm-provider-selection)) |
+| Generating data / running reconciliation fails with permission or I/O errors on `backend/data/` | An older `docker-compose.yml` mounted the `recon_data` volume *before* the `./backend` bind mount and marked it `:ro` — the bind mount then shadowed the volume and made the whole tree read-only | Make sure `docker-compose.yml` lists `./backend:/app/backend` **before** `recon_data:/app/backend/data`, and that the backend bind mount is **not** `:ro` |
+| Custom `OLLAMA_MODEL` in `.env` is ignored, container still pulls `qwen2.5:1.5b` | `OLLAMA_MODEL` wasn't passed into the `ollama` service's own `environment:` block, only into `reconagent`'s | Ensure `OLLAMA_MODEL=${OLLAMA_MODEL:-qwen2.5:1.5b}` is set under **both** services in `docker-compose.yml` |
+| Frontend container shows "unhealthy" in `docker compose ps` even though the app loads fine at `localhost:5173` | `node:20-alpine` doesn't ship `curl`, which the healthcheck uses | Rebuild after the Dockerfile fix that adds `RUN apk add --no-cache curl`, or switch the healthcheck to `wget` |
+| Running locally with `make dev` (no Docker) tries to call Gemini even though you never set `LLM_PROVIDER` | `backend/config.py` defaulted `llm_provider` to `"gemini"`, inconsistent with the Ollama-first default everywhere else | Fixed in `config.py` — default is now `"ollama"`, matching `.env.example` |
 
 ---
 

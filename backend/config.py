@@ -36,7 +36,7 @@ class Settings:
     repo_root: Path = field(default_factory=lambda: REPO_ROOT)
 
     # LLM (Stage 5)
-    llm_provider: str = "gemini"
+    llm_provider: str = "ollama"
     ollama_base_url: str = DEFAULT_OLLAMA_BASE_URL
     ollama_model: str = DEFAULT_OLLAMA_MODEL
     gemini_api_key: str = ""
@@ -74,7 +74,7 @@ def load_settings() -> Settings:
     """Load .env if present, then build a Settings instance from the environment."""
     load_dotenv(_env_path())
     return Settings(
-        llm_provider=os.getenv("LLM_PROVIDER", "gemini"),
+        llm_provider=os.getenv("LLM_PROVIDER", "ollama"),
         ollama_base_url=os.getenv("OLLAMA_BASE_URL", DEFAULT_OLLAMA_BASE_URL),
         ollama_model=os.getenv("OLLAMA_MODEL", DEFAULT_OLLAMA_MODEL),
         gemini_api_key=os.getenv("GEMINI_API_KEY", ""),

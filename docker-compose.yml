@@ -1,12 +1,13 @@
 # ReconAgent — Docker Compose for Hackathon Evaluation
-# One-command startup: docker-compose up --build
+# One-command startup: docker compose up --build
 #
 # Services (all start by default):
 #   - reconagent: FastAPI backend (port 8000)
-#   - ollama: Local LLM runtime (port 11434) — privacy-first
+#   - ollama: Local LLM runtime (port 11434) — privacy-first, CPU by default
 #   - frontend: Vite + React dev server (port 5173)
 #
-# LLM Provider Selection (set at runtime):
+# LLM Provider Selection (set in .env, NOT via `docker compose up -e ...` — that flag
+# does not exist on `up`, only on `run`):
 #   - Local (default):   LLM_PROVIDER=ollama  (uses Ollama container, pulls qwen2.5:1.5b)
 #   - Cloud (optional):  LLM_PROVIDER=gemini GEMINI_API_KEY=your_key (no Ollama needed)
 
@@ -25,7 +26,7 @@ services:
       - .env
     environment:
       # LLM Provider: "ollama" (default, local) or "gemini" (cloud)
-      # Override at runtime: docker-compose up -e LLM_PROVIDER=gemini -e GEMINI_API_KEY=xxx
+      # Set these in .env — `docker compose up` has no `-e` flag.
       - LLM_PROVIDER=${LLM_PROVIDER:-ollama}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.0-flash}
@@ -37,10 +38,14 @@ services:
       # CORS for frontend dev server
       - CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://frontend:5173
     volumes:
-      # Persist SQLite database & generated data
+      # IMPORTANT: mount order matters. The host bind mount for live-reload must
+      # be listed BEFORE the named volume for /app/backend/data, so the volume
+      # ends up nested "on top" and actually persists writes. Listing the volume
+      # first (as in earlier revisions of this file) silently shadows it and
+      # makes the whole backend/ tree read-only, which breaks data generation
+      # and the SQLite DB.
+      - ./backend:/app/backend
       - recon_data:/app/backend/data
-      # Optional: mount source for live reload during development
-      - ./backend:/app/backend:ro
       - ./scripts:/app/scripts:ro
     depends_on:
       ollama:
@@ -56,29 +61,38 @@ services:
   # ──────────────────────────────────────────────────────────────────────
   # Ollama — Local LLM Runtime (Privacy-First, Stage 5 Tie-Break)
   # Only used when LLM_PROVIDER=ollama (default). Auto-pulls model on startup.
+  # Runs on CPU by default so it works out of the box on any machine. If you
+  # have an NVIDIA GPU + the NVIDIA Container Toolkit installed, uncomment the
+  # `gpus: all` line below for faster inference — leaving it on by default
+  # breaks `docker compose up` on machines without a GPU (Docker Desktop on
+  # Mac/Windows, most laptops), which is the #1 cause of "ollama isn't working".
   # ──────────────────────────────────────────────────────────────────────
   ollama:
     image: ollama/ollama:latest
     container_name: reconagent-ollama
     ports:
       - "11434:11434"
-
-    gpus: all
+    # gpus: all   # uncomment if you have an NVIDIA GPU + nvidia-container-toolkit
     volumes:
       # Persist downloaded model weights
       - ollama_models:/root/.ollama
     environment:
       # Allow external connections (from reconagent container)
       - OLLAMA_HOST=0.0.0.0
+      # Must also be set here (not just on `reconagent`) or the pull command
+      # below always falls back to the default model, ignoring your .env.
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen2.5:1.5b}
     # Pull model on startup (runs once, cached in volume afterwards)
     entrypoint: ["/bin/sh", "-c", "ollama serve & sleep 5 && ollama pull ${OLLAMA_MODEL:-qwen2.5:1.5b} && wait"]
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
-      interval: 10s
+      # Use the `ollama` binary itself rather than curl — the image doesn't
+      # ship curl, so a curl-based healthcheck fails immediately every time.
+      test: ["CMD", "ollama", "list"]
+      interval: 15s
       timeout: 5s
-      retries: 5
-      start_period: 60s  # Extra time for initial model pull
+      retries: 12
+      start_period: 180s  # first-run model pull (~1.5GB) can take a while on slow links
 
   # ──────────────────────────────────────────────────────────────────────
   # Frontend — Vite + React 19 Dashboard (Always runs)
@@ -91,7 +105,7 @@ services:
     ports:
       - "5173:5173"
     environment:
-      - VITE_API_BASE=http://localhost:8000
+      - VITE_API_BASE=http://localhost:8000/api
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -115,18 +129,18 @@ volumes:
 # Usage Examples
 # ──────────────────────────────────────────────────────────────────────
 #   # Default: Local Ollama (pulls qwen2.5:1.5b automatically)
-#   docker-compose up --build
+#   docker compose up --build
 #
-#   # Cloud Gemini (no Ollama model pull needed)
-#   docker-compose up --build -e LLM_PROVIDER=gemini -e GEMINI_API_KEY=your_key_here
-#
-#   # Custom Ollama model
-#   docker-compose up --build -e OLLAMA_MODEL=llama3.2:3b
+#   # Cloud Gemini — set LLM_PROVIDER and GEMINI_API_KEY in .env, then:
+#   docker compose up --build
+#   # (there is no `-e` flag on `docker compose up`; for a one-off override
+#   #  on Linux/macOS you can instead prefix the command, e.g.:
+#   #  LLM_PROVIDER=gemini GEMINI_API_KEY=your_key_here docker compose up --build)
 #
 #   # Run demo inside API container
-#   docker-compose exec reconagent python scripts/demo.py --seed 42
+#   docker compose exec reconagent python scripts/demo.py --seed 42
 #
 #   # View logs
-#   docker-compose logs -f reconagent
-#   docker-compose logs -f ollama
-#   docker-compose logs -f frontend
+#   docker compose logs -f reconagent
+#   docker compose logs -f ollama
+#   docker compose logs -f frontend
