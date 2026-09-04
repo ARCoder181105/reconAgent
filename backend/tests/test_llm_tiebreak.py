@@ -237,6 +237,7 @@ def test_queues_drains_and_persists_event_but_does_not_close():
         api_key="",
         model="fake-model",
         run_fn=fake_run,
+        gen_factory=lambda key: object(),  # dummy client; fake_run doesn't use it
         session_factory=worker_factory,
     )
     queue.enqueue(

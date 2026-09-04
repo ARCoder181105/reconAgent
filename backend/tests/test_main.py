@@ -252,11 +252,37 @@ def test_matches_include_net_ok(client):
     for m in matches:
         assert "net_ok" in m
         assert isinstance(m["net_ok"], bool)
-    # Synthetic data produces a mix: some settlements have consistent fee math,
-    # others have intentionally messy data. Both True and False are valid.
-    has_true = any(m["net_ok"] for m in matches)
-    has_false = any(not m["net_ok"] for m in matches)
-    assert has_true and has_false, "expected a mix of net_ok True and False in synthetic data"
+    # Synthetic data has consistent fee math (net = gross - fees - tax - refunds + adj),
+    # so all matches should be net_ok=True now that the refund sign is correct.
+    assert all(m["net_ok"] for m in matches), "synthetic settlements should all have consistent fee math"
+
+
+def test_check_net_ok_refund_sign():
+    """_check_net_ok uses the correct formula: gross - fees - tax - refunds + adjustments."""
+    from backend.app.models import Settlement as SettModel
+    from backend.app.routers.report import _check_net_ok
+
+    # A settlement with refunds: the formula is gross - fees - tax - refunds + adj
+    # With the old bug (+ refunds) this would be flagged incorrectly.
+    s = SettModel()
+    s.gross_amount = 100000  # ₹1000
+    s.fees = 2000           # ₹20
+    s.tax_gst = 360         # ₹3.60
+    s.refunds_deducted = 5000  # ₹50 refund
+    s.adjustments = 0
+    # Correct: 100000 - 2000 - 360 - 5000 + 0 = 92640
+    s.net_amount = 92640
+    assert _check_net_ok(s) is True
+
+    # Same but with the net_amount not accounting for refund → should be False
+    s2 = SettModel()
+    s2.gross_amount = 100000
+    s2.fees = 2000
+    s2.tax_gst = 360
+    s2.refunds_deducted = 5000
+    s2.adjustments = 0
+    s2.net_amount = 97640  # forgot to subtract the refund
+    assert _check_net_ok(s2) is False
 
 
 def test_report_resolution_metric(client):

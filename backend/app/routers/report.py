@@ -192,7 +192,7 @@ def _check_net_ok(s: models.Settlement) -> bool:
     tax = s.tax_gst or 0
     refunds = s.refunds_deducted or 0
     adj = s.adjustments or 0
-    expected = s.gross_amount - fees - tax + refunds + adj
+    expected = s.gross_amount - fees - tax - refunds + adj
     return abs(expected - s.net_amount) <= 1  # ±1 paise tolerance
 
 
