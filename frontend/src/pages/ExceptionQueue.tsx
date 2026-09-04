@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { CheckSquare, ClipboardCheck, Download, PlayCircle, Sparkles, Undo2 } from "lucide-react"
 import { toast } from "sonner"
 import {
@@ -517,11 +517,30 @@ function ApproveDialog({
   const [decision, setDecision] = useState<boolean | null>(null)
   const [reason, setReason] = useState("")
   const [submitting, setSubmitting] = useState(false)
+  const [makerId, setMakerId] = useState<string | null>(null)
+
+  // Fetch the maker_id from the event log when the dialog opens.
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    api.exceptionEvents(exc.exception_id).then((events) => {
+      if (cancelled) return
+      // Find the most recent MAKER_PROPOSED event.
+      const proposed = [...events]
+        .reverse()
+        .find((e) => e.event_type === "MAKER_PROPOSED")
+      setMakerId(proposed?.maker_id ?? null)
+    }).catch(() => { /* ignore — segregation check is best-effort */ })
+    return () => { cancelled = true }
+  }, [open, exc.exception_id])
+
+  const currentChecker = checkerId.trim() || "checker"
+  const isSegregationViolation = makerId != null && currentChecker === makerId
 
   const submit = async () => {
-    if (decision == null) return
+    if (decision == null || isSegregationViolation) return
     setSubmitting(true)
-    const ok = await onApprove(exc.exception_id, checkerId.trim() || "checker", decision, reason || undefined)
+    const ok = await onApprove(exc.exception_id, currentChecker, decision, reason || undefined)
     setSubmitting(false)
     if (ok) {
       toast.success(decision ? `Closed #${exc.exception_id} — books updated` : `Rejected proposal for #${exc.exception_id}`)
@@ -557,6 +576,11 @@ function ApproveDialog({
               Checker id
             </label>
             <Input value={checkerId} onChange={(e) => setCheckerId(e.target.value)} placeholder="checker" />
+            {isSegregationViolation && (
+              <p className="mt-1 text-xs text-destructive">
+                Segregation of Duties: Maker cannot approve their own proposal
+              </p>
+            )}
           </div>
 
           <div className="pt-1">
@@ -569,7 +593,11 @@ function ApproveDialog({
 
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={submit} disabled={submitting || decision == null || (decision === false && !reason.trim())}>
+          <Button
+            onClick={submit}
+            disabled={submitting || decision == null || (decision === false && !reason.trim()) || isSegregationViolation}
+            title={isSegregationViolation ? "Segregation of Duties: Maker cannot approve their own proposal" : undefined}
+          >
             {submitting ? "Submitting…" : decision === false ? "Reject" : "Approve"}
           </Button>
         </DialogFooter>
