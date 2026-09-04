@@ -35,6 +35,12 @@
 | P2.4 | Stage 5 async LLM tie-break (Gemini structured output) | B | _done (It8)_ |
 | P2.5 | API: resolve (maker) / approve (checker) / pending-approval | B | _done (It7)_ |
 
+## Phase P3 — Polish
+
+| # | Task | Cluster | Status |
+|---|---|---|---|
+| P3.1 | Docs finalization + demo pack (README, scripts/demo.py, .env.example) | C | _done (It11)_ |
+
 ## Current
 
-Iterations 9 (summary + data inspection dashboard) and 10 (exception queue, Maker-Checker approval, audit trail, bulk resolve) are implemented; the full product loop — generate → run → review → bulk/individual resolve → approve → measure — now lives in the UI. Next (optional): Iteration 11 (docs finalization + demo pack).
+Iterations 9 (summary + data inspection dashboard), 10 (exception queue, Maker-Checker approval, audit trail, bulk resolve) and 11 (README + demo pack + doc finalization) are complete. The full product loop — generate → run → review → bulk/individual resolve → approve → measure — lives in the UI, and `make demo` reproduces the honest numbers from a clean clone in one command.

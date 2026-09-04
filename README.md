@@ -2,59 +2,90 @@
 
 **Multi-Source Fuzzy Reconciliation Engine** — Razorpay Buildathon, Track 04 (AI Finance Controller).
 
-ReconAgent matches a Razorpay-style settlement report against messy bank statement data across a 50+ record batch, reports measured accuracy, and surfaces an honest exception queue with a Maker‑Checker workflow. It is a 5‑stage deterministic pipeline (exact → fuzzy UTR → amount+date → batch‑sum → async LLM tie‑break) with an event‑sourced exception log.
+ReconAgent matches a Razorpay-style settlement report against messy bank statement data across a 50+ record batch, reports measured accuracy, and surfaces an honest exception queue with a Maker‑Checker workflow. It is a 5‑stage deterministic pipeline (exact → fuzzy UTR → amount+date → batch‑sum → async LLM tie‑break) with an event‑sourced exception log, wrapped in a React dashboard that turns the whole flow — generate → run → review → bulk/individual resolve → approve → measure — into a single product loop.
 
-> This is the build repo. The authoritative design, decisions, constraints and taxonomy live in [`docs/`](docs/) — see [`docs/sources-of-truth.md`](docs/sources-of-truth.md) for precedence. Code lives in `backend/` (React frontend lands in Iterations 9–11).
+> The authoritative design, decisions, constraints and taxonomy live in [`docs/`](docs/) — see [`docs/sources-of-truth.md`](docs/sources-of-truth.md) for precedence.
 
 ---
 
 ## Status
 
-- **Iterations 0–8 complete & committed**: data generator, matcher (exact / fuzzy UTR / amount+date / batch‑sum), reconcile + exception engine, offline scoring with 3× false‑positive penalty, FastAPI backend, and the Stage 5 async LLM tie‑break with graceful fallback.
-- **Accuracy tuning (It9 pre-dashboard)**: recovered the two deterministic miss sources — a wider batch date window and a dominant‑UTR tie‑break — lifting seed‑42 eval to **48/48, precision 1.0, recall 1.0, F1 1.0, penalized 1.0** with **0 false positives** (recall +6.25 to +8.33pp across seeds 42/43/44/45/7/123).
-- **Next**: pause for review, then Iterations 9–11 (React dashboard).
+- **Iterations 0–10 complete & committed**: data generator, matcher (exact / fuzzy UTR / amount+date / batch‑sum), reconcile + exception engine, offline scoring with 3× false‑positive penalty, FastAPI backend, Stage 5 async LLM tie‑break, and the React dashboard (summary, data inspection, exception queue + Maker‑Checker + bulk resolve, audit trail).
+- **Accuracy**: seed‑42 eval **48/48, precision 1.0, recall 1.0, F1 1.0, penalized 1.0** with **0 false positives** (recall +6.25 to +8.33pp across seeds 42/43/44/45/7/123).
+- **Tests**: 66 backend tests passing; `npm run build` clean.
+
+---
+
+## Quickstart (demo)
+
+```bash
+# 1. Create the virtualenv and install dependencies
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# 2. One-command demo: generate → reconcile → score → headline numbers
+make demo                # or: python scripts/demo.py
+
+# 3. Run the dashboard (needs two terminals)
+
+# terminal A — backend API on :8000
+make dev
+
+# terminal B — frontend dev server on :5173
+make web-install         # first time only
+make web
+```
+
+Open `http://localhost:5173`. Click **Run reconciliation** to generate fresh data and reconcile, review exceptions as the **Maker**, approve them as the **Checker** in the Pending Approval tab, and watch **verified rate** rise on the Summary.
+
+> Pitch: **verification capacity, not generation speed, is the bottleneck.** Every number on the board is measured and honest — `match_rate` (engine confidence) and `verified_rate` (books actually closed by a Checker) are reported and kept distinct on purpose.
 
 ---
 
 ## Features
 
 - **5‑stage pipeline**: `exact` → `fuzzy_utr` (rapidfuzz) → `amount_date` → `batch_sum` (bounded subset‑sum) → `llm_tiebreak`. INR amounts handled as integer paise.
-- **Honest exceptions**: canonical reason codes (`docs/taxonomy.md`), ranked candidates, review band (60–84) vs auto‑close (≥85).
+- **Honest exceptions**: canonical reason codes (`docs/taxonomy.md`), ranked candidates, review band (60–84) vs auto‑close (≥85). The dashboard splits each stage into auto vs review so it's obvious which stages close themselves and which always reach the human.
 - **Maker‑Checker + event sourcing**: Maker proposes, only a Checker closes. Exception `status` is a projection cache over an append‑only `exception_events` log — never updated in place.
 - **LLM = last resort**: Stage 5 runs async in a background queue, uses Gemini structured output with strict JSON, can lift confidence into the review band (max 84) but **never** auto‑closes an exception, and degrades gracefully to a deterministic fallback on any failure.
 - **Hidden answer key**: generated into `backend/data/` for scoring only; never reaches matcher scope and is gitignored.
-- **Measured accuracy**: offline scoring with a 3× false‑positive penalty.
+- **Measured accuracy**: offline scoring with a **3× false‑positive penalty** — a deliberate choice (a wrong pairing is costlier than a missed one), weighted so the engine does not chase recall by guessing.
 
 ---
 
-## Getting started
+## Getting started (full)
 
-Requires **Python 3.12.3** (pinned in `.python-version`). Node/React tooling arrives with the frontend (It9).
+Requires **Python 3.12.3** (pinned in `.python-version`) and Node 18+ for the frontend.
 
 ```bash
-# 1. Create the virtualenv and install dependencies
-python -m venv .venv
+# Install backend
+python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
-# 2. Configure the environment (LLM key is optional; only needed for Stage 5)
-cp .env.example .env        # then fill in GEMINI_API_KEY if you want the LLM tie-break
+# Configure environment (LLM key optional; only needed for Stage 5)
+cp .env.example .env        # fill in GEMINI_API_KEY if you want the LLM tie-break
 
-# 3. Run the API
-uvicorn backend.app.main:app --reload     # or: make dev
+# Install + run frontend
+make web-install
+make dev                     # backend  :8000
+make web                     # frontend :5173  (separate terminal)
 ```
 
 ### CLI / Makefile targets
 
 ```bash
-make install   # install requirements into .venv
-make test      # run backend/tests
-make test-v    # verbose test run
-make gen       # generate synthetic data (settlements.csv, bank_statement.csv, answer_key.json)
-make score     # offline scoring vs hidden answer key (3x fp penalty)
-make dev       # uvicorn backend.app.main:app --reload
-make data      # make test + make score
-make help      # list all targets
+make install      # install requirements into .venv
+make test         # run backend/tests (66)
+make gen          # generate synthetic data (settlements.csv, bank_statement.csv, answer_key.json)
+make score        # offline scoring vs hidden answer key (3x fp penalty), seed 42
+make demo         # one-command: generate + reconcile + score + headline numbers
+make dev          # uvicorn backend.app.main:app --reload
+make web          # Vite dev server
+make web-build    # type-check + build frontend
+make clean        # remove venv + generated data + caches
+make help         # list all targets
 ```
 
 ---
@@ -74,7 +105,7 @@ make help      # list all targets
 | GET | `/api/ai-tiebreaks` | Async LLM queue health (pending / processed / failed) |
 | GET | `/health` | Liveness |
 
-Docs are auto‑generated at `/docs` once the server is running.
+Interactive docs auto‑generate at `/docs` once the server is running.
 
 ---
 
@@ -93,19 +124,23 @@ backend/
   tests/                # pytest suite
   config.py  constants.py
 docs/                   # design + domain source of truth
+frontend/               # Vite + React 19 + TS + shadcn/ui dashboard
+scripts/demo.py         # one-command demo
 ```
 
 The production data flow: `run-reconciliation` runs stages 1–4 synchronously and returns the deterministic report immediately; eligible unresolved lines are enqueued on a process‑wide `TiebreakQueue` and drained by a daemon thread, which appends `AI_TIEBREAK_SUGGESTED` events (additive signal only, never an auto‑close).
+
+The dashboard (`frontend/`) is fully client-side against the API: pages stay presentational, all state transitions happen through the It7 contract. See `docs/iterations/` for per-iteration design.
 
 ---
 
 ## Guardrails (non‑negotiable)
 
-- The hidden `answer_key.json` must **never** reach matcher scope.
+- The hidden `answer_key.json` must **never** reach matcher scope; it is only read by `backend/eval/` and `scripts/demo.py`.
 - Exceptions are **event‑sourced**: never `UPDATE` status in place; append to `exception_events`.
 - **LLM = last resort** (Stage 5, async, never sole authority; capped at 84, never closes).
 - **Maker proposes, Checker closes.**
-- Synthetic data only — INR/paise integers, no real financial data.
+- **Synthetic data only** — modeled INR/paise integers, no real financial data. Do not treat it as real merchant data.
 
 Domain decisions, constraints, glossary and reason codes are locked in `docs/` (`decisions.md`, `constraints.md`, `glossary.md`, `taxonomy.md`).
 
@@ -114,5 +149,5 @@ Domain decisions, constraints, glossary and reason codes are locked in `docs/` (
 ## Development
 
 - Always use the `.venv` (never system Python).
-- Run tests: `python -m pytest backend/tests/` (expect 62 passing).
+- Run tests: `python -m pytest backend/tests/` (66 passing).
 - Follow `AGENTS.md` for workflow, doc‑update rules and commit discipline (conventional commits per milestone).

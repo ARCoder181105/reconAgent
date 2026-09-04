@@ -24,7 +24,7 @@
 | 08 | Async LLM tie-break | P2 | done |
 | 09 | Frontend: summary + data inspection | P2 | done |
 | 10 | Exception queue + Maker-Checker + bulk resolve | P2 | done |
-| 11 | Docs finalization + demo pack | P3 | pending |
+| 11 | Docs finalization + demo pack | P3 | done |
 
 ## Naming Convention (locked)
 

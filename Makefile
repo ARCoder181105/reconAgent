@@ -1,4 +1,4 @@
-.PHONY: help install test lint gen score clean data web web-build web-install
+.PHONY: help install test lint gen score demo clean data web web-build web-install
 
  SHELL := /bin/bash
 PY := .venv/bin/python
@@ -31,6 +31,9 @@ score: ## Generate + reconcile + score against hidden answer key (seed 42)
 
 score-seed: ## Score with a custom seed: make score-seed SEED=7
 	$(PY) -m backend.eval.run_score --seed $(SEED)
+
+demo: ## One-command demo: generate + reconcile + score + headline numbers (seed 42)
+	$(PY) scripts/demo.py --seed 42
 
 dev: ## Run the FastAPI server (Iteration 07 target: backend/app/main.py)
 	$(PY) -m uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000

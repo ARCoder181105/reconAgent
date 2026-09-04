@@ -1,6 +1,6 @@
 # Iteration 11 — Docs Finalization + Demo Pack
 
-> Phase P3 (polish). (Depends on 08–10.)
+> Phase P3 (polish). (**Status: done** — shipped with It11.)
 
 ## Goal
 
