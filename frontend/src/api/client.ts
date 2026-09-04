@@ -62,6 +62,8 @@ export interface Candidate {
   line_id?: string | null
   score?: number | null
   stage?: string | null
+  net_amount?: number | null
+  settlement_date?: string | null
 }
 
 export interface ExceptionRecord {

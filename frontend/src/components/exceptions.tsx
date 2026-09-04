@@ -1,5 +1,6 @@
 import { type Candidate } from "@/api/client"
 import { cn } from "@/lib/utils"
+import { formatINR } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 
 /** Map a canonical reason code to a human label + tone. */
@@ -46,6 +47,22 @@ export function formatScore(score: number | null | undefined): string {
   return `${(score * 100).toFixed(1)}%`
 }
 
+/**
+ * What to show as a candidate's "evidence" tag. Scored candidates show a
+ * confidence percentage; unscored pools (LLM tie-break context, batch-partition
+ * participants) carry no confidence, so surface the amount + date instead.
+ */
+export function candidateMeta(c: Candidate): string {
+  if (c.score != null && !Number.isNaN(c.score) && Number.isFinite(c.score)) {
+    return formatScore(c.score)
+  }
+  if (c.net_amount != null) {
+    const date = c.settlement_date ? ` · ${c.settlement_date}` : ""
+    return `${formatINR(c.net_amount)}${date}`
+  }
+  return "—"
+}
+
 export function CandidatesList({
   candidates,
   compact = false,
@@ -65,7 +82,7 @@ export function CandidatesList({
           </code>
           <span className="flex items-center gap-2">
             {c.stage ? <BadgeGlue stage={c.stage} /> : null}
-            <span className="font-tabular text-muted-foreground">{formatScore(c.score)}</span>
+            <span className="font-tabular text-muted-foreground">{candidateMeta(c)}</span>
           </span>
         </li>
       ))}
