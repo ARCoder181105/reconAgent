@@ -38,6 +38,16 @@ class ScoreCard:
     f1: float = 0.0
     penalized_score: float = 0.0
     wrong_lines: list[tuple[str, str, str]] = field(default_factory=list)  # (sid, got, expected)
+    # Amount-weighted variants (paise). precision/recall stay denominated on the
+    # expected-to-match subset; misrouted_pct is denominated on the whole book.
+    hits_amount: int = 0
+    fp_amount: int = 0
+    fn_amount: int = 0
+    total_amount: int = 0
+    amount_precision: float = 0.0
+    amount_recall: float = 0.0
+    misrouted_pct: float = 0.0
+    penalized_misrouted_pct: float = 0.0
 
     def as_dict(self) -> dict:
         return {
@@ -52,6 +62,14 @@ class ScoreCard:
             "f1": self.f1,
             "penalized_score": self.penalized_score,
             "wrong_lines": self.wrong_lines,
+            "hits_amount": self.hits_amount,
+            "fp_amount": self.fp_amount,
+            "fn_amount": self.fn_amount,
+            "total_amount": self.total_amount,
+            "amount_precision": self.amount_precision,
+            "amount_recall": self.amount_recall,
+            "misrouted_pct": self.misrouted_pct,
+            "penalized_misrouted_pct": self.penalized_misrouted_pct,
         }
 
 
@@ -61,6 +79,11 @@ def _settlement_match_map(matches) -> dict[str, str]:
     for m in matches:
         out.setdefault(m["settlement_id"], m["line_id"])
     return out
+
+
+def _amount(settlement_info: dict) -> int:
+    """net_amount in paise (0 if absent so weighting stays well-defined)."""
+    return int(settlement_info.get("net_amount") or 0)
 
 
 def score_reconciliation(answer_key: dict, matches) -> ScoreCard:
@@ -79,29 +102,45 @@ def score_reconciliation(answer_key: dict, matches) -> ScoreCard:
     # Settlements that must be matched (have a real bank line in truth).
     expected_sids = [sid for sid, info in settlements_truth.items() if info["line_id"]]
 
+    # Whole book (all settlements) is the denominator for misrouted_pct.
+    card.total_amount = sum(_amount(info) for info in settlements_truth.values())
+
+    # fp on *expected* settlements (wrong-line matches) — the precision base.
+    fp_expected_amount = 0
+
     for sid, info in settlements_truth.items():
         truth_line = info["line_id"]
         got_line = matched.get(sid)
+        amount = _amount(info)
 
         if truth_line is not None:
             card.expected_matches += 1
             if got_line == truth_line:
                 card.hits += 1
+                card.hits_amount += amount
             else:
                 if got_line is not None:
                     card.false_positives += 1  # matched to the wrong line
+                    card.fp_amount += amount
+                    fp_expected_amount += amount
                     card.wrong_lines.append((sid, got_line, truth_line))
                 card.misses += 1
+                card.fn_amount += amount
         else:
             # Orphan/not-credited settlement must stay unmatched.
             if got_line is not None:
                 card.false_positives += 1
+                card.fp_amount += amount
                 card.wrong_lines.append((sid, got_line, "<none>"))
 
     # A match that binds an orphan bank charge line is a false positive too.
+    # Weight it by the settlement it was wrongly bound to (bank lines carry no
+    # settlement-level amount of their own). Excluded from the precision base.
     for m in matches:
         if m["line_id"] in orphan_bank_lines:
             card.false_positives += 1
+            bound_amount = _amount(settlements_truth.get(m["settlement_id"], {}))
+            card.fp_amount += bound_amount
             card.wrong_lines.append((m["settlement_id"], m["line_id"], "<orphan-line>"))
 
     tp = card.hits
@@ -118,5 +157,22 @@ def score_reconciliation(answer_key: dict, matches) -> ScoreCard:
         card.penalized_score = round(max(0.0, (tp - card.penalty_weight * fp) / card.expected_matches), 4)
     else:
         card.penalized_score = 1.0 if fp == 0 else 0.0
+
+    # --- amount-weighted accuracy (paise) ---
+    # precision/recall are denominated on expected-to-match settlements only
+    # (orphan FPs are excluded from the precision base — correct classification
+    # base). misrouted_pct is denominated on the whole book.
+    tp_a, fn_a = card.hits_amount, card.fn_amount
+    if tp_a + fp_expected_amount > 0:
+        card.amount_precision = round(tp_a / (tp_a + fp_expected_amount), 4)
+    if tp_a + fn_a > 0:
+        card.amount_recall = round(tp_a / (tp_a + fn_a), 4)
+    if card.total_amount > 0:
+        card.misrouted_pct = round(100.0 * (card.fp_amount + fn_a) / card.total_amount, 4)
+        # Same 3x false-positive weight as the row-count penalized_score, so the
+        # money metric and the count metric carry consistent risk weighting.
+        card.penalized_misrouted_pct = round(
+            100.0 * (card.penalty_weight * card.fp_amount + fn_a) / card.total_amount, 4
+        )
 
     return card
