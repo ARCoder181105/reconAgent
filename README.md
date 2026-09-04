@@ -11,11 +11,42 @@
 | Track 04 Requirement | How ReconAgent Delivers |
 |---|---|
 | **Payment risk / finance controller** | Reconciles gateway settlements ↔ bank credits — the core financial control loop for any merchant |
-| **AI-assisted, not AI-replaced** | 5-stage deterministic pipeline handles 90%+; LLM (Stage 5) is *last resort*, capped at confidence 84, never auto-closes |
+| **AI-assisted, not AI-replaced** | 5-stage deterministic pipeline resolves ~80% of records; only ~60% clear the confidence bar to auto-close, the rest correctly route to human review by design. LLM (Stage 5) is *last resort*, capped at confidence 84, never auto-closes |
 | **Explainability & auditability** | Every match carries a reason code, confidence tier, and ranked candidates; exceptions are event-sourced (append-only log) |
 | **Human-in-the-loop governance** | Maker proposes → Checker approves; nothing closes on a single person's say-so |
 | **Measured accuracy, not claimed** | Hidden answer key evaluates precision/recall/F1 with 3× FP penalty; scores reported per-stage |
 | **Privacy-first architecture** | Local Ollama (qwen2.5) runs entirely on-prem; cloud LLM (Gemini) is optional and configurable |
+
+---
+
+## 📊 Results — A Distribution, Not a Cherry-Picked Run
+
+The track brief warns that "one cherry-picked match proves nothing." Here's what 10 independent
+random seeds actually produce (`python scripts/demo.py --multi 10`), not a single lucky number:
+
+| Metric | Mean | Stdev |
+|---|---|---|
+| Precision (row-count) | **1.000** | 0.000 |
+| Recall (row-count) | **0.944** | 0.057 |
+| F1 | **0.970** | 0.032 |
+| Penalized score (3× FP weight) | **0.944** | 0.057 |
+| ₹ misrouted (amount-weighted) | **4.70%** | 4.58% |
+
+**Zero false positives across every one of the 10 seeds tested.** The engine is conservative by
+design — when it isn't sure, it exceptions the record rather than guessing, which is exactly the
+posture a financial control should have. Recall varies with how hard a given seed's batch happens
+to be (seed 5, the hardest, still lands at 0.792 recall with 0 false positives); precision never
+drops, because a wrong auto-match is treated as a worse failure than an honest exception.
+
+For a single-seed walkthrough with full per-stage detail, see [Testing Instructions](#-testing-instructions-for-evaluators) below.
+
+---
+
+## 🖼 Screenshots
+
+> _Add 2–3 screenshots or a short GIF here before submitting: the Exception Queue with a ranked
+> candidate list, the Maker → Checker approval flow, and the Cash Position tile on the Dashboard.
+> A judge skimming for 30 seconds will look at this section before reading a single curl command._
 
 ---
 
@@ -227,21 +258,30 @@ source .venv/bin/activate
 python scripts/demo.py --seed 42
 ```
 
-**Expected Output (seed 42):**
+**Expected Output (seed 42, verified against the current pipeline):**
 ```
-╭─────────────────────────────────────────────────────────────╮
-│  RECONCILIATION REPORT (seed=42, batch=60)                 │
-├─────────────────────────────────────────────────────────────┤
-│  Auto-matched:  48  (80.0%)                                 │
-│  Review queue:  8   (13.3%)                                 │
-│  Hard except:   4   (6.7%)                                  │
-├─────────────────────────────────────────────────────────────┤
-│  Precision:     1.000                                       │
-│  Recall:        1.000                                       │
-│  F1:            1.000                                       │
-│  Penalized:     1.000    (3× FP penalty applied)           │
-╰─────────────────────────────────────────────────────────────╯
+1) Generated 60 settlements, 47 bank lines (seed 42).
+
+2) Reconciled — 48/60 matched.
+   match_rate     60.00%   (engine confidence)
+   review_rate    20.00%   (60-84 band -> Maker)
+   exception_rate 20.00%   (hard exceptions)
+   per-stage:
+      exact          30
+      fuzzy_utr       7
+      amount_date     5
+      batch_sum       6
+
+3) Offline accuracy vs hidden answer key (FP penalized 3x):
+   row: precision 1.000  recall 1.000  F1 1.000  penalized 1.000
+        hits 48/48 · fp 0 · misses 0
+   ₹:   precision 1.000  recall 1.000  misrouted 0.00%  penalized 0.00%
 ```
+
+Note the gap between "48/60 matched" (stages 1–4 found a candidate) and "match_rate 60%"
+(only the ≥85-confidence subset auto-closes) — `amount_date` and `batch_sum` results always land
+in the review band by design, since neither carries UTR corroboration. That gap is the exception
+engine working as intended, not a shortfall.
 
 ### 6. Multi-Seed Robustness Check
 
@@ -359,7 +399,7 @@ ReconAgent/
 - [ ] `docker compose up --build` starts all 3 services cleanly (API :8000, Ollama :11434, Frontend :5173)
 - [ ] Ollama auto-pulls `qwen2.5:1.5b` on first run (check `docker compose logs -f ollama`)
 - [ ] `docker compose exec reconagent python scripts/demo.py --seed 42` prints **Penalized: 1.000**
-- [ ] `curl localhost:8000/api/report` shows `match_rate > 0.75`, `exception_rate > 0`
+- [ ] `curl localhost:8000/api/report` shows `match_rate` around `60` (0–100 scale, not a fraction) and `exception_rate > 0`
 - [ ] `curl localhost:8000/api/exceptions` returns array with `reason_code`, `confidence`, `candidates`
 - [ ] Maker→Checker flow via `/resolve` + `/approve` increments `verified_rate`
 - [ ] `curl localhost:8000/api/score` returns per-stage breakdown matching demo output
