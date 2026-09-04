@@ -93,18 +93,28 @@ class TiebreakQueue:
     # --- worker side ---
 
     def _drain(self) -> None:
-        client = self._gen_factory(self.api_key)
+        client = None  # lazily built so a construction failure degrades per task
         while True:
             with self._lock:
                 if not self._tasks:
                     break
                 task = self._tasks.pop(0)
             try:
+                if client is None:
+                    client = self._gen_factory(self.api_key)
                 decision = self._run_fn(client, task, self.model)
                 self._persist(task, decision)
                 with self._lock:
                     self._processed += 1
             except Exception:
+                # Never let a client/API failure silently kill the worker. Persist
+                # the deterministic fallback decision so the exception still gets a
+                # reviewable AI_TIEBREAK_SUGGESTED (source=fallback) event instead of
+                # being stranded forever.
+                try:
+                    self._persist(task, llm_tiebreak.fallback_decision())
+                except Exception:
+                    pass
                 with self._lock:
                     self._failed += 1
             finally:

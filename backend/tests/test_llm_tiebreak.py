@@ -295,6 +295,64 @@ def test_queue_records_failures_without_crash():
     assert queue.processed() == 0
 
 
+def test_client_construction_failure_persists_fallback_not_stranded():
+    """Bad/missing GEMINI_API_KEY must NOT kill the worker.
+
+    A gen_factory that raises (simulating an invalid key) should degrade to the
+    deterministic fallback decision — persisted as an AI_TIEBREAK_SUGGESTED
+    event with source=fallback — and still be accounted, instead of leaving the
+    task stranded forever with nothing persisted.
+    """
+    import json
+
+    from backend.app.models import Exception as ExceptionModel
+
+    db_session, worker_factory, eng = _make_mem_sessions()
+
+    def add_exc(line_id):
+        exc = ExceptionModel(
+            reason_code=REASON_UTR_UNRESOLVED, line_id=line_id, status="open"
+        )
+        db_session.add(exc)
+        db_session.commit()
+        return exc.exception_id
+
+    id_a = add_exc("bl_a")
+    id_b = add_exc("bl_b")
+
+    def boom_factory(api_key):
+        raise RuntimeError("bad GEMINI_API_KEY")
+
+    queue = TiebreakQueue(
+        api_key="",
+        model="fake-model",
+        gen_factory=boom_factory,
+        session_factory=worker_factory,
+    )
+    queue.enqueue(TiebreakTask(exception_id=id_a, line=_LINE, candidates=_CANDIDATES))
+    queue.enqueue(TiebreakTask(exception_id=id_b, line=_LINE, candidates=_CANDIDATES))
+    queue.start()
+    _wait_drained(queue)
+
+    assert queue.pending() == 0
+    assert queue.failed() == 2
+    assert queue.processed() == 0
+
+    check = worker_factory()
+    try:
+        for exc_id in (id_a, id_b):
+            row = check.get(ExceptionModel, exc_id)
+            events = [ev for ev in row.events]
+            assert len(events) == 1
+            ev = events[0]
+            assert ev.event_type == EVENT_AI_TIEBREAK_SUGGESTED
+            data = json.loads(ev.resolution_data or "{}")
+            assert data.get("source") == llm_tiebreak.SOURCE_FALLBACK
+            assert row.status == "open"
+    finally:
+        check.close()
+
+
 def _wait_drained(queue: TiebreakQueue, timeout: float = 5.0) -> None:
     """Block until the worker has consumed all tasks (or timed out)."""
     import time
