@@ -40,6 +40,12 @@ export function tierLabel(confidence: number | null | undefined): string {
   return "hard"
 }
 
+/** Format a candidate score as a percentage, or a dash when missing/noisy. */
+export function formatScore(score: number | null | undefined): string {
+  if (score == null || Number.isNaN(score) || !Number.isFinite(score)) return "—"
+  return `${(score * 100).toFixed(1)}%`
+}
+
 export function CandidatesList({
   candidates,
   compact = false,
@@ -55,11 +61,11 @@ export function CandidatesList({
       {candidates.map((c, i) => (
         <li key={`${c.settlement_id}-${c.line_id}-${i}`} className="flex items-center justify-between gap-3">
           <code className="font-mono text-xs">
-            {c.settlement_id} <span aria-hidden>→</span> {c.line_id}
+            {c.settlement_id} <span aria-hidden>→</span> {(c.line_id ?? "—").toString()}
           </code>
           <span className="flex items-center gap-2">
-            <BadgeGlue stage={c.stage} />
-            <span className="font-tabular text-muted-foreground">{(c.score * 100).toFixed(1)}%</span>
+            {c.stage ? <BadgeGlue stage={c.stage} /> : null}
+            <span className="font-tabular text-muted-foreground">{formatScore(c.score)}</span>
           </span>
         </li>
       ))}

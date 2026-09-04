@@ -59,9 +59,9 @@ export interface Match {
 
 export interface Candidate {
   settlement_id: string
-  line_id: string
-  score: number
-  stage: string
+  line_id?: string | null
+  score?: number | null
+  stage?: string | null
 }
 
 export interface ExceptionRecord {
