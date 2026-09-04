@@ -23,7 +23,7 @@
 | 07 | FastAPI backend + full API | P1/P2 | pending |
 | 08 | Async LLM tie-break | P2 | done |
 | 09 | Frontend: summary + data inspection | P2 | done |
-| 10 | Exception queue + Maker-Checker + bulk resolve | P2 | pending |
+| 10 | Exception queue + Maker-Checker + bulk resolve | P2 | done |
 | 11 | Docs finalization + demo pack | P3 | pending |
 
 ## Naming Convention (locked)

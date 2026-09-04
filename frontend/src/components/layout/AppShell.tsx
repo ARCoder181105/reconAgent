@@ -16,8 +16,8 @@ interface NavItem {
 const NAV: NavItem[] = [
   { key: "summary", label: "Summary", icon: LayoutDashboard, available: true },
   { key: "inspection", label: "Data inspection", icon: Database, available: true },
-  { key: "exceptions", label: "Exceptions", icon: ShieldCheck, available: false },
-  { key: "audit", label: "Audit trail", icon: TableIcon, available: false },
+  { key: "exceptions", label: "Exceptions", icon: ShieldCheck, available: true },
+  { key: "audit", label: "Audit trail", icon: TableIcon, available: true },
 ]
 
 export function AppShell({ children }: { children: (view: View) => ReactNode }) {

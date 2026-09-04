@@ -29,12 +29,12 @@
 
 | # | Task | Cluster | Status |
 |---|---|---|---|
-| P2.1 | React dashboard: summary, queue, audit trail, inspection | C | _in_progress (It9: summary + inspection done; queue/audit next)_ |
+| P2.1 | React dashboard: summary, queue, audit trail, inspection | C | _done (It9 + It10)_ |
 | P2.2 | Maker-Checker workflow + event-sourced log | B | _done (It7)_ |
-| P2.3 | Bulk Select & Resolve | C | _pending (It10)_ |
+| P2.3 | Bulk Select & Resolve | C | _done (It10)_ |
 | P2.4 | Stage 5 async LLM tie-break (Gemini structured output) | B | _done (It8)_ |
 | P2.5 | API: resolve (maker) / approve (checker) / pending-approval | B | _done (It7)_ |
 
 ## Current
 
-Iteration 9 (React dashboard: summary + data inspection, Vite + shadcn design system) is implemented and building; CORS + `make web*` wired. Next: PAUSE for human review of the It9 dashboard, then Iteration 10 (exception queue, Maker-Checker approval, audit trail, bulk resolve).
+Iterations 9 (summary + data inspection dashboard) and 10 (exception queue, Maker-Checker approval, audit trail, bulk resolve) are implemented; the full product loop — generate → run → review → bulk/individual resolve → approve → measure — now lives in the UI. Next (optional): Iteration 11 (docs finalization + demo pack).

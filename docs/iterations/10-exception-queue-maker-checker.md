@@ -1,6 +1,8 @@
 # Iteration 10 — Exception Queue + Maker-Checker + Bulk Resolve
 
-> Phase P2. (Depends on 09.)
+> Phase P2. (**Status: done** — shipped with It10.) Implemented in TypeScript files
+> (`frontend/src/pages/ExceptionQueue.tsx`, `AuditTrail.tsx`, `frontend/src/hooks/useExceptions.ts`,
+> `useAudit.ts`, `frontend/src/components/exceptions.tsx`) rather than the `.js` names below.
 
 ## Goal
 
