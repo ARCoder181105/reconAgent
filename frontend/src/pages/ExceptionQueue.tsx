@@ -331,7 +331,7 @@ function ResolveDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-2 text-sm">
+        <div className="min-h-0 space-y-2 overflow-y-auto text-sm">
           <p className="text-muted-foreground">Proposed decision</p>
           <div className="flex gap-2">
             {(["confirm", "reject", "override"] as MakerAction[]).map((a) => (
@@ -461,7 +461,7 @@ function ApproveDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-2 text-sm">
+        <div className="min-h-0 space-y-2 overflow-y-auto text-sm">
           <p className="text-muted-foreground">Decision</p>
           <div className="flex gap-2">
             <Button size="sm" variant={decision === true ? "default" : "outline"} onClick={() => setDecision(true)}>
