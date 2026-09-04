@@ -85,6 +85,7 @@ class ExceptionOut(ORMModel):
     candidates_json: Optional[str] = None
     status: str
     created_at: datetime
+    explanation: str = ""  # deterministic plain-language summary (Part 1)
 
 
 class ExceptionEventOut(ORMModel):
@@ -111,6 +112,20 @@ class ExceptionApproveIn(BaseModel):
     checker_id: str
     decision: bool
     reason_text: Optional[str] = None
+
+
+class ExplainIn(BaseModel):
+    """Request body for the bulk AI-explain endpoint."""
+    ids: list[int]
+
+
+class ExplainOut(BaseModel):
+    """Response for a single AI-explain result."""
+    exception_id: int
+    explanation: str          # deterministic (always present)
+    ai_summary: str           # AI-rephrased or fallback
+    ai_notes: str
+    source: str               # "llm" or "fallback"
 
 
 class GenerateResponse(BaseModel):

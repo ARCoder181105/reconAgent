@@ -1,10 +1,11 @@
 import { useState } from "react"
-import { CheckSquare, ClipboardCheck, Download, PlayCircle, Undo2 } from "lucide-react"
+import { CheckSquare, ClipboardCheck, Download, PlayCircle, Sparkles, Undo2 } from "lucide-react"
 import { toast } from "sonner"
 import {
   api,
   parseCandidates,
   type ExceptionRecord,
+  type ExplainResult,
 } from "@/api/client"
 import { useExceptions, type MakerAction } from "@/hooks/useExceptions"
 import { useLiveSync } from "@/hooks/useLiveSync"
@@ -72,6 +73,16 @@ export function ExceptionQueue() {
     }
   }
 
+  const onBulkExplain = async () => {
+    if (selected.size === 0) return
+    try {
+      await api.explainBulk([...selected])
+      toast.success(`AI explanation generated for ${selected.size} exception${selected.size > 1 ? "s" : ""}`)
+    } catch {
+      toast.error("Bulk AI explain failed — check the backend is running")
+    }
+  }
+
   return (
     <div className="space-y-6">
       <header>
@@ -128,6 +139,7 @@ export function ExceptionQueue() {
           busyIds={busyIds}
           onResolve={resolve}
           onBulk={onBulk}
+          onBulkExplain={onBulkExplain}
           onResolved={(id) => {
             toast.success(`Proposed resolution for #${id} — awaiting the checker`)
           }}
@@ -171,6 +183,7 @@ function MakerTable({
   busyIds,
   onResolve,
   onBulk,
+  onBulkExplain,
   onResolved,
 }: {
   rows: ExceptionRecord[]
@@ -180,6 +193,7 @@ function MakerTable({
   busyIds: Set<number>
   onResolve: ReturnType<typeof useExceptions>["resolve"]
   onBulk: (action: MakerAction) => void
+  onBulkExplain: () => void
   onResolved: (id: number) => void
 }) {
   const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.exception_id))
@@ -198,6 +212,9 @@ function MakerTable({
               Apply {a}
             </Button>
           ))}
+          <Button size="sm" variant="outline" onClick={onBulkExplain}>
+            <Sparkles className="mr-1 h-3.5 w-3.5" /> Explain selected
+          </Button>
           <Button variant="ghost" size="sm" className="ml-auto" onClick={clearSelection}>
             Clear
           </Button>
@@ -258,6 +275,21 @@ function MakerRow({
   onResolved: (id: number) => void
 }) {
   const [action, setAction] = useState<MakerAction | null>(null)
+  const [aiResult, setAiResult] = useState<ExplainResult | null>(null)
+  const [aiLoading, setAiLoading] = useState(false)
+
+  const handleExplain = async () => {
+    setAiLoading(true)
+    try {
+      const result = await api.explain(exc.exception_id)
+      setAiResult(result)
+    } catch {
+      toast.error("AI explain failed")
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
   return (
     <TableRow>
       <TableCell>
@@ -275,11 +307,38 @@ function MakerRow({
       </TableCell>
       <TableCell className="max-w-[18rem]">
         <CandidatesList candidates={parseCandidates(exc)} compact />
+        {exc.explanation && (
+          <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{exc.explanation}</p>
+        )}
+        {aiResult && (
+          <div className="mt-2 rounded-md border border-dashed border-primary/30 bg-primary/5 p-2">
+            <div className="mb-1 flex items-center gap-1.5">
+              <Sparkles className="h-3 w-3 text-primary" />
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-primary">AI-generated</span>
+            </div>
+            <p className="text-xs leading-relaxed text-foreground">{aiResult.ai_summary}</p>
+            {aiResult.ai_notes && (
+              <p className="mt-1 text-xs text-muted-foreground">{aiResult.ai_notes}</p>
+            )}
+          </div>
+        )}
       </TableCell>
       <TableCell className="text-right">
-        <Button size="sm" variant="outline" disabled={busy} onClick={() => setAction("confirm")}>
-          Review
-        </Button>
+        <div className="flex flex-col items-end gap-1">
+          <Button size="sm" variant="outline" disabled={busy} onClick={() => setAction("confirm")}>
+            Review
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={aiLoading || !!aiResult}
+            onClick={handleExplain}
+            className="text-xs"
+          >
+            <Sparkles className="mr-1 h-3 w-3" />
+            {aiLoading ? "Thinking…" : aiResult ? "Explained" : "Explain with AI"}
+          </Button>
+        </div>
         {action && (
           <ResolveDialog
             exc={exc}
@@ -419,6 +478,9 @@ function CheckerRow({ exc, busy, onApprove }: { exc: ExceptionRecord; busy: bool
       <TableCell className="text-right font-tabular">{exc.confidence ?? "—"}</TableCell>
       <TableCell className="max-w-[16rem]">
         <CandidatesList candidates={parseCandidates(exc)} compact />
+        {exc.explanation && (
+          <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{exc.explanation}</p>
+        )}
       </TableCell>
       <TableCell className="text-right">
         <Button size="sm" variant="outline" disabled={busy} onClick={() => setOpen(true)}>

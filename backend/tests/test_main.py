@@ -5,47 +5,6 @@ in-memory DB by overriding the ``get_session`` dependency.
 """
 from __future__ import annotations
 
-import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
-
-from backend.app.db import Base, init_db
-from backend.app.db import get_session
-from backend.app.main import app
-
-MED = create_engine(
-    "sqlite://",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,  # share one in-memory DB across the TestClient thread
-)
-TestingSession = sessionmaker(bind=MED, autoflush=False, expire_on_commit=False)
-
-
-def _override_session():
-    db = TestingSession()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-app.dependency_overrides[get_session] = _override_session
-
-
-@pytest.fixture(autouse=True)
-def _fresh_db():
-    init_db(MED)
-    yield
-    Base.metadata.drop_all(bind=MED)
-    Base.metadata.create_all(bind=MED)
-
-
-@pytest.fixture()
-def client():
-    return TestClient(app)
-
 
 def test_full_maker_checker_workflow(client):
     # --- generate + run ---

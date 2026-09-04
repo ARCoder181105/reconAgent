@@ -88,6 +88,15 @@ export interface ExceptionRecord {
   candidates_json?: string | null
   status: string
   created_at: string
+  explanation: string
+}
+
+export interface ExplainResult {
+  exception_id: number
+  explanation: string
+  ai_summary: string
+  ai_notes: string
+  source: "llm" | "fallback"
 }
 
 export interface ExceptionEvent {
@@ -200,6 +209,12 @@ export const api = {
     const qs = status ? `?status=${status}` : ""
     await download(`/export/exceptions${qs}`, "reconagent_exceptions.csv")
   },
+  explain: (id: number) => request<ExplainResult>(`/exceptions/${id}/explain`, { method: "POST" }),
+  explainBulk: (ids: number[]) =>
+    request<ExplainResult[]>("/exceptions/explain", {
+      method: "POST",
+      body: JSON.stringify({ ids }),
+    }),
 }
 
 /** Parse the JSON-encoded candidates string stored on an exception row. */

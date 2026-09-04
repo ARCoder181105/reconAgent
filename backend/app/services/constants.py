@@ -22,12 +22,16 @@ EV_CHECKER_REJECTED = EVENT_CHECKER_REJECTED
 # It8: LLM tie-break event (append-only, never auto-close).
 EVENT_AI_TIEBREAK_SUGGESTED = "AI_TIEBREAK_SUGGESTED"
 
+# Explanation system: on-demand AI rephrase event (cached, append-only).
+EVENT_AI_EXPLAIN_GENERATED = "AI_EXPLAIN_GENERATED"
+
 EVENT_TYPES = (
     EVENT_CREATED,
     EVENT_MAKER_PROPOSED,
     EVENT_CHECKER_APPROVED,
     EVENT_CHECKER_REJECTED,
     EVENT_AI_TIEBREAK_SUGGESTED,
+    EVENT_AI_EXPLAIN_GENERATED,
 )
 
 # Exception status projection values (derived cache on models.Exception.status).
