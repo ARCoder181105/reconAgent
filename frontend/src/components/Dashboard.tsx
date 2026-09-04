@@ -15,6 +15,13 @@ const rupees = new Intl.NumberFormat("en-IN", {
   maximumFractionDigits: 0,
 })
 
+function fmtDuration(seconds: number): string {
+  if (seconds < 60) return `${Math.round(seconds)}s`
+  const m = Math.floor(seconds / 60)
+  const s = Math.round(seconds % 60)
+  return s > 0 ? `${m}m ${s}s` : `${m}m`
+}
+
 export function Dashboard() {
   const { report, loading, error, busyAction, runReconciliation, lastSeed, reload } = useReport()
   const { status, active, error: tieError, setOnDone } = useTiebreaks()
@@ -163,6 +170,24 @@ export function Dashboard() {
               <p className="mt-1 text-xs text-muted-foreground">
                 match_rate is an engine signal; verified_rate is books actually closed (decision D6).
               </p>
+            </div>
+
+            <div className="rounded-lg border bg-card p-5 shadow-sm">
+              <h3 className="font-display text-sm font-semibold tracking-tight text-foreground">Time to resolution</h3>
+              {report.resolution.count === 0 ? (
+                <p className="mt-3 text-sm text-muted-foreground">No closed exceptions yet.</p>
+              ) : (
+                <div className="mt-3 space-y-1 text-sm text-muted-foreground">
+                  <p>
+                    avg <span className="font-tabular font-medium text-foreground">{fmtDuration(report.resolution.avg)}</span>
+                    {" "}· min <span className="font-tabular text-foreground">{fmtDuration(report.resolution.min)}</span>
+                    {" "}· max <span className="font-tabular text-foreground">{fmtDuration(report.resolution.max)}</span>
+                  </p>
+                  <p className="text-xs">
+                    across {report.resolution.count} closed exception{report.resolution.count !== 1 ? "s" : ""}
+                  </p>
+                </div>
+              )}
             </div>
           </section>
         </>

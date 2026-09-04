@@ -97,6 +97,7 @@ def report(stage: str | None = None, db: Session = Depends(get_session)):
         "by_stage_review": by_stage_review,
         "by_reason": by_reason,
         "cash": cash,
+        "resolution": _resolution_times(db),
     }
 
 
@@ -113,6 +114,46 @@ def _verified_ids(db: Session) -> set[str]:
 
 def _verified_count(db: Session) -> int:
     return len(_verified_ids(db))
+
+
+def _resolution_times(db: Session) -> dict:
+    """Average/min/max time-to-resolution (seconds) for closed exceptions.
+
+    Computed from Exception.created_at → first CHECKER_APPROVED event timestamp.
+    Returns {"avg": ..., "min": ..., "max": ..., "count": 0} when nothing is closed.
+    """
+    closed = (
+        db.query(models.Exception.exception_id, models.Exception.created_at)
+        .filter(models.Exception.status == "closed")
+        .all()
+    )
+    if not closed:
+        return {"avg": 0, "min": 0, "max": 0, "count": 0}
+
+    deltas: list[float] = []
+    for exc_id, created_at in closed:
+        approval = (
+            db.query(models.ExceptionEvent.timestamp)
+            .filter(
+                models.ExceptionEvent.exception_id == exc_id,
+                models.ExceptionEvent.event_type == EVENT_CHECKER_APPROVED,
+            )
+            .order_by(models.ExceptionEvent.timestamp)
+            .first()
+        )
+        if approval and created_at:
+            delta = (approval[0] - created_at).total_seconds()
+            deltas.append(max(0.0, delta))
+
+    if not deltas:
+        return {"avg": 0, "min": 0, "max": 0, "count": 0}
+
+    return {
+        "avg": round(sum(deltas) / len(deltas), 1),
+        "min": round(min(deltas), 1),
+        "max": round(max(deltas), 1),
+        "count": len(deltas),
+    }
 
 
 @router.get("/matches", response_model=list[schemas.MatchOut])

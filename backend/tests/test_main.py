@@ -257,3 +257,29 @@ def test_matches_include_net_ok(client):
     has_true = any(m["net_ok"] for m in matches)
     has_false = any(not m["net_ok"] for m in matches)
     assert has_true and has_false, "expected a mix of net_ok True and False in synthetic data"
+
+
+def test_report_resolution_metric(client):
+    """Resolution block reports time-to-resolution for closed exceptions."""
+    client.post("/api/run-reconciliation", params={"seed": 42})
+
+    # Before any approval: count is 0
+    rr = client.get("/api/report").json()
+    assert rr["resolution"]["count"] == 0
+
+    # Resolve + approve one exception
+    excs = client.get("/api/exceptions", params={"status": "open"}).json()
+    candidate = next(e for e in excs if e["settlement_id"] and e["line_id"])
+    exc_id = candidate["exception_id"]
+    client.post(f"/api/exceptions/{exc_id}/resolve",
+                json={"maker_id": "alice", "action": "confirm"})
+    client.post(f"/api/exceptions/{exc_id}/approve",
+                json={"checker_id": "bob", "decision": True})
+
+    # Now resolution block should reflect the closed exception
+    rr = client.get("/api/report").json()
+    res = rr["resolution"]
+    assert res["count"] >= 1
+    assert res["avg"] >= 0
+    assert res["min"] >= 0
+    assert res["max"] >= res["min"]

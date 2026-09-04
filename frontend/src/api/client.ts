@@ -25,6 +25,12 @@ export interface Report {
     rupees_exceptions: number
     rupees_verified: number
   }
+  resolution: {
+    avg: number
+    min: number
+    max: number
+    count: number
+  }
 }
 
 export interface Settlement {
