@@ -260,10 +260,15 @@ def explain_single(exception_id: int, db: Session = Depends(get_session)):
 
 @router.post("/explain", response_model=list[schemas.ExplainOut])
 def explain_bulk(payload: schemas.ExplainIn, db: Session = Depends(get_session)):
-    """Bulk AI-explain for multiple exceptions (client-side loop pattern)."""
+    """Bulk AI-explain for multiple exceptions (single client, one loop)."""
+    from backend.app.services.constants import EVENT_AI_EXPLAIN_GENERATED
+    from backend.app.services.explain import explain_with_llm
+    from backend.config import settings
+    from backend.app.services.llm_queue import _default_gen_client
+
+    client = _default_gen_client(settings.gemini_api_key)
     results = []
     for eid in payload.ids:
-        # Re-use the single-explain logic by calling it directly.
         exc = db.get(models.Exception, eid)
         if exc is None:
             continue
@@ -291,9 +296,6 @@ def explain_bulk(payload: schemas.ExplainIn, db: Session = Depends(get_session))
         )
         deterministic = explain_exception(inp)
 
-        from backend.app.services.constants import EVENT_AI_EXPLAIN_GENERATED
-        from backend.app.services.explain import explain_with_llm
-
         # Check cache.
         cached = (
             db.query(models.ExceptionEvent)
@@ -318,10 +320,6 @@ def explain_bulk(payload: schemas.ExplainIn, db: Session = Depends(get_session))
             except (json.JSONDecodeError, TypeError):
                 pass
 
-        from backend.config import settings
-        from backend.app.services.llm_queue import _default_gen_client
-
-        client = _default_gen_client(settings.gemini_api_key)
         ai = explain_with_llm(
             client, deterministic, exc.reason_code, candidates, exc.confidence,
             settings.gemini_model,

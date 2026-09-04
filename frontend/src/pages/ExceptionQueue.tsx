@@ -311,10 +311,20 @@ function MakerRow({
           <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{exc.explanation}</p>
         )}
         {aiResult && (
-          <div className="mt-2 rounded-md border border-dashed border-primary/30 bg-primary/5 p-2">
+          <div className={cn(
+            "mt-2 rounded-md border border-dashed p-2",
+            aiResult.source === "llm"
+              ? "border-primary/30 bg-primary/5"
+              : "border-muted-foreground/30 bg-muted/30"
+          )}>
             <div className="mb-1 flex items-center gap-1.5">
-              <Sparkles className="h-3 w-3 text-primary" />
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-primary">AI-generated</span>
+              <Sparkles className={cn("h-3 w-3", aiResult.source === "llm" ? "text-primary" : "text-muted-foreground")} />
+              <span className={cn(
+                "text-[10px] font-semibold uppercase tracking-wider",
+                aiResult.source === "llm" ? "text-primary" : "text-muted-foreground"
+              )}>
+                {aiResult.source === "llm" ? "AI-generated" : "AI unavailable — deterministic fallback"}
+              </span>
             </div>
             <p className="text-xs leading-relaxed text-foreground">{aiResult.ai_summary}</p>
             {aiResult.ai_notes && (
