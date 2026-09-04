@@ -1,0 +1,132 @@
+# ReconAgent — Docker Compose for Hackathon Evaluation
+# One-command startup: docker-compose up --build
+#
+# Services (all start by default):
+#   - reconagent: FastAPI backend (port 8000)
+#   - ollama: Local LLM runtime (port 11434) — privacy-first
+#   - frontend: Vite + React dev server (port 5173)
+#
+# LLM Provider Selection (set at runtime):
+#   - Local (default):   LLM_PROVIDER=ollama  (uses Ollama container, pulls qwen2.5:1.5b)
+#   - Cloud (optional):  LLM_PROVIDER=gemini GEMINI_API_KEY=your_key (no Ollama needed)
+
+services:
+  # ──────────────────────────────────────────────────────────────────────
+  # Main API — ReconAgent FastAPI Backend
+  # ──────────────────────────────────────────────────────────────────────
+  reconagent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: reconagent-api
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      # LLM Provider: "ollama" (default, local) or "gemini" (cloud)
+      # Override at runtime: docker-compose up -e LLM_PROVIDER=gemini -e GEMINI_API_KEY=xxx
+      - LLM_PROVIDER=${LLM_PROVIDER:-ollama}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.0-flash}
+      # Ollama connectivity (container-to-container DNS name) — used only if LLM_PROVIDER=ollama
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen2.5:1.5b}
+      # Database path inside container
+      - RECON_DB_PATH=/app/backend/data/recon.sqlite3
+      # CORS for frontend dev server
+      - CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://frontend:5173
+    volumes:
+      # Persist SQLite database & generated data
+      - recon_data:/app/backend/data
+      # Optional: mount source for live reload during development
+      - ./backend:/app/backend:ro
+      - ./scripts:/app/scripts:ro
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health', timeout=2)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # ──────────────────────────────────────────────────────────────────────
+  # Ollama — Local LLM Runtime (Privacy-First, Stage 5 Tie-Break)
+  # Only used when LLM_PROVIDER=ollama (default). Auto-pulls model on startup.
+  # ──────────────────────────────────────────────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: reconagent-ollama
+    ports:
+      - "11434:11434"
+
+    gpus: all
+    volumes:
+      # Persist downloaded model weights
+      - ollama_models:/root/.ollama
+    environment:
+      # Allow external connections (from reconagent container)
+      - OLLAMA_HOST=0.0.0.0
+    # Pull model on startup (runs once, cached in volume afterwards)
+    entrypoint: ["/bin/sh", "-c", "ollama serve & sleep 5 && ollama pull ${OLLAMA_MODEL:-qwen2.5:1.5b} && wait"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s  # Extra time for initial model pull
+
+  # ──────────────────────────────────────────────────────────────────────
+  # Frontend — Vite + React 19 Dashboard (Always runs)
+  # ──────────────────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.frontend
+    container_name: reconagent-frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_BASE=http://localhost:8000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - reconagent
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5173"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  recon_data:
+    driver: local
+  ollama_models:
+    driver: local
+
+# ──────────────────────────────────────────────────────────────────────
+# Usage Examples
+# ──────────────────────────────────────────────────────────────────────
+#   # Default: Local Ollama (pulls qwen2.5:1.5b automatically)
+#   docker-compose up --build
+#
+#   # Cloud Gemini (no Ollama model pull needed)
+#   docker-compose up --build -e LLM_PROVIDER=gemini -e GEMINI_API_KEY=your_key_here
+#
+#   # Custom Ollama model
+#   docker-compose up --build -e OLLAMA_MODEL=llama3.2:3b
+#
+#   # Run demo inside API container
+#   docker-compose exec reconagent python scripts/demo.py --seed 42
+#
+#   # View logs
+#   docker-compose logs -f reconagent
+#   docker-compose logs -f ollama
+#   docker-compose logs -f frontend

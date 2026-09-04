@@ -1,0 +1,20 @@
+# ReconAgent — Frontend Dockerfile (Vite + React 19 + TypeScript)
+# Build: docker build -t reconagent-frontend:latest -f Dockerfile.frontend ./frontend
+# Run:   docker run -p 5173:5173 -e VITE_API_BASE=http://localhost:8000 reconagent-frontend:latest
+
+FROM node:20-alpine AS base
+
+WORKDIR /app
+
+# Install dependencies (cached layer)
+COPY package.json package-lock.json ./
+RUN npm ci
+
+# Copy source
+COPY . .
+
+# Expose Vite dev server port
+EXPOSE 5173
+
+# Run dev server with host binding for Docker
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
