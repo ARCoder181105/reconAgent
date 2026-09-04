@@ -248,6 +248,7 @@ make test         # run backend/tests (66)
 make gen          # generate synthetic data (settlements.csv, bank_statement.csv, answer_key.json)
 make score        # offline scoring vs hidden answer key (3x fp penalty), seed 42
 make demo         # one-command: generate + reconcile + score + headline numbers
+make demo-multi   # multi-seed robustness (mean/stdev), default N=10
 make dev          # uvicorn backend.app.main:app --reload
 make web          # Vite dev server
 make web-build    # type-check + build frontend
