@@ -8,6 +8,12 @@ import { TieBreakIndicator } from "@/components/TieBreakIndicator"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 
+const rupees = new Intl.NumberFormat("en-IN", {
+  style: "currency",
+  currency: "INR",
+  maximumFractionDigits: 0,
+})
+
 export function Dashboard() {
   const { report, loading, error, busyAction, runReconciliation, lastSeed, reload } = useReport()
   const { status, active, error: tieError, setOnDone } = useTiebreaks()
@@ -90,6 +96,41 @@ export function Dashboard() {
               accent="safe"
             />
           </div>
+
+          <section aria-label="Cash position">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Cash position · net settlement value
+            </p>
+            <div className="mt-1 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <MetricCard
+                label="Auto-matched"
+                value={rupees.format(report.cash.rupees_auto)}
+                sub="confidence ≥ 85"
+                accent="neutral"
+              />
+              <MetricCard
+                label="Review band"
+                value={rupees.format(report.cash.rupees_review)}
+                sub="60–84 → human"
+                accent="review"
+              />
+              <MetricCard
+                label="Exceptions"
+                value={rupees.format(report.cash.rupees_exceptions)}
+                sub="needs a human"
+                accent="amber"
+              />
+              <MetricCard
+                label="Verified"
+                value={rupees.format(report.cash.rupees_verified)}
+                sub="books closed by checker"
+                accent="safe"
+              />
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Verified ≤ auto is intent, not a bug: the engine proposes; only a checker closes books (decision D6).
+            </p>
+          </section>
 
           <StageRail report={report} />
 

@@ -19,6 +19,12 @@ export interface Report {
   by_stage_auto: Record<string, number>
   by_stage_review: Record<string, number>
   by_reason: Record<string, number>
+  cash: {
+    rupees_auto: number
+    rupees_review: number
+    rupees_exceptions: number
+    rupees_verified: number
+  }
 }
 
 export interface Settlement {

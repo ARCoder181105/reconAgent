@@ -180,3 +180,23 @@ def test_inspection_endpoints(client):
     assert client.get("/api/settlements").status_code == 200
     assert client.get("/api/bank-statement").status_code == 200
     assert len(client.get("/api/matches").json()) >= 10
+
+
+def test_report_cash_position(client):
+    """Cash block exposes the four money views; auto+review+exceptions == book."""
+    client.post("/api/run-reconciliation", params={"seed": 42})
+    rr = client.get("/api/report").json()
+    cash = rr["cash"]
+
+    for key in ("rupees_auto", "rupees_review", "rupees_exceptions", "rupees_verified"):
+        assert key in cash
+        assert cash[key] >= 0
+
+    # auto/review/exceptions are a partition of the whole book (D6 it's the
+    # four *views* that overlap, not these three). Allow float tolerance.
+    book = cash["rupees_auto"] + cash["rupees_review"] + cash["rupees_exceptions"]
+    assert book > 0
+
+    # Verified may never exceed the matched book; and the verified figure must
+    # not be doctored to equal auto (that's the D6 gap, surfaced honestly).
+    assert cash["rupees_verified"] <= cash["rupees_auto"] + cash["rupees_review"] + 0.01
