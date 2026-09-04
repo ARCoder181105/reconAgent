@@ -6,6 +6,7 @@ import {
   type ExceptionRecord,
 } from "@/api/client"
 import { useExceptions, type MakerAction } from "@/hooks/useExceptions"
+import { useLiveSync } from "@/hooks/useLiveSync"
 import { cn } from "@/lib/utils"
 import {
   Table,
@@ -44,7 +45,8 @@ const CONFIRM_TEXT: Record<MakerAction, string> = {
 }
 
 export function ExceptionQueue() {
-  const { open, pending, loading, error, resolve, approve, resolveMany, busyIds } = useExceptions()
+  const { open, pending, loading, error, resolve, approve, resolveMany, busyIds, reload } = useExceptions()
+  useLiveSync(reload)
   const [tab, setTab] = useState<Tab>("maker")
   const [selected, setSelected] = useState<Set<number>>(new Set())
 

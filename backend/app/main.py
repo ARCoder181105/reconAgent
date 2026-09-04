@@ -10,8 +10,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 
 from backend.app.db import init_db
+from backend.app.events import event_stream
 from backend.app.routers import data, exceptions, inspector, report, score
 from backend.config import settings
 
@@ -50,3 +52,19 @@ app.include_router(score.router)
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok"}
+
+
+@app.get("/api/events")
+async def sse_events():
+    """Server-Sent Events stream — the browser opens this once and stays
+    connected.  Every mutation (run-reconciliation, resolve, approve) pushes
+    a lightweight event that triggers client-side re-fetches."""
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )

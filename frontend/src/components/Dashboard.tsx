@@ -2,6 +2,7 @@ import { useEffect } from "react"
 import { RefreshCw, Play } from "lucide-react"
 import { useReport } from "@/hooks/useReport"
 import { useTiebreaks } from "@/hooks/useTiebreaks"
+import { useLiveSync } from "@/hooks/useLiveSync"
 import { MetricCard } from "@/components/MetricCard"
 import { StageRail } from "@/components/StageRail"
 import { TieBreakIndicator } from "@/components/TieBreakIndicator"
@@ -17,6 +18,8 @@ const rupees = new Intl.NumberFormat("en-IN", {
 export function Dashboard() {
   const { report, loading, error, busyAction, runReconciliation, lastSeed, reload } = useReport()
   const { status, active, error: tieError, setOnDone } = useTiebreaks()
+
+  useLiveSync(reload)
 
   const pending = status?.pending ?? 0
 

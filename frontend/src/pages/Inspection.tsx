@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { api, type BankStatement, type Settlement } from "@/api/client"
+import { useLiveSync } from "@/hooks/useLiveSync"
 import { formatINR, formatINRDecimal } from "@/lib/utils"
 import {
   Table,
@@ -53,6 +54,8 @@ function SettlementsSection() {
       setLoading(false)
     }
   }, [])
+
+  useLiveSync(() => load(offset))
 
   useEffect(() => {
     void load(0)
@@ -134,6 +137,8 @@ function StatementSection() {
       setLoading(false)
     }
   }, [])
+
+  useLiveSync(() => load(offset))
 
   useEffect(() => {
     void load(0)

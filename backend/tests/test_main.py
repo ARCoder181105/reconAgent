@@ -200,3 +200,45 @@ def test_report_cash_position(client):
     # Verified may never exceed the matched book; and the verified figure must
     # not be doctored to equal auto (that's the D6 gap, surfaced honestly).
     assert cash["rupees_verified"] <= cash["rupees_auto"] + cash["rupees_review"] + 0.01
+
+
+def test_broadcast_fires_on_approve(client):
+    """After approve, the CHECKER_APPROVED event is in the DB and the report
+    reflects the verified record (the broadcast is fire-and-forget via
+    BackgroundTasks — it doesn't block the response)."""
+    client.post("/api/run-reconciliation", params={"seed": 42})
+    excs = client.get("/api/exceptions", params={"status": "open"}).json()
+    candidate = next(e for e in excs if e["settlement_id"] and e["line_id"])
+    exc_id = candidate["exception_id"]
+
+    # resolve + approve
+    client.post(f"/api/exceptions/{exc_id}/resolve",
+                json={"maker_id": "alice", "action": "confirm"})
+    client.post(f"/api/exceptions/{exc_id}/approve",
+                json={"checker_id": "bob", "decision": True})
+
+    # The broadcast is fire-and-forget (BackgroundTasks); verify the DB side effect.
+    events = client.get(f"/api/exceptions/{exc_id}/events").json()
+    types = [e["event_type"] for e in events]
+    assert "CHECKER_APPROVED" in types
+
+    # And the report now reflects the verified record.
+    rr = client.get("/api/report").json()
+    assert rr["verified_count"] >= 1
+
+
+def test_broadcast_bus():
+    """The in-memory event bus fans out to all registered listeners."""
+    import asyncio
+    from backend.app.events import _register, _unregister, broadcast
+
+    lid, q = _register()
+    try:
+        asyncio.get_event_loop().run_until_complete(
+            broadcast("test_event", {"key": "value"})
+        )
+        msg = q.get_nowait()
+        assert msg["event"] == "test_event"
+        assert msg["data"]["key"] == "value"
+    finally:
+        _unregister(lid)

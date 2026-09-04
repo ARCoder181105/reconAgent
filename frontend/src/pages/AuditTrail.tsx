@@ -1,4 +1,5 @@
 import { useAudit } from "@/hooks/useAudit"
+import { useLiveSync } from "@/hooks/useLiveSync"
 import {
   Table,
   TableBody,
@@ -23,7 +24,8 @@ const STAGE_TONE: Record<string, "safe" | "review" | "amber" | "secondary" | "ou
 }
 
 export function AuditTrail() {
-  const { rows, loading, error, stage, minConf, setStageFilter, setConfFilter, resetFilters } = useAudit()
+  const { rows, loading, error, stage, minConf, setStageFilter, setConfFilter, resetFilters, reload } = useAudit()
+  useLiveSync(reload)
 
   return (
     <div className="space-y-6">

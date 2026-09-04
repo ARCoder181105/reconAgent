@@ -1,11 +1,12 @@
 """Data + reconciliation endpoints."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends
 from sqlalchemy.orm import Session
 
 from backend.app import schemas
 from backend.app.db import get_session
+from backend.app.events import broadcast
 from backend.app.routers.constants import API_PREFIX, TAG_DATA
 from backend.app.services import reconcile_service
 from backend.app.services.llm_queue import TiebreakQueue
@@ -40,6 +41,7 @@ def generate_data(seed: int | None = None, db: Session = Depends(get_session)):
 def run_reconciliation(
     seed: int | None = None,
     reload_data: bool = True,
+    bg: BackgroundTasks = BackgroundTasks(),
     db: Session = Depends(get_session),
 ):
     """Run the staged pipeline deterministically (stage-5 tail lands in It8).
@@ -47,9 +49,11 @@ def run_reconciliation(
     The deterministic report is returned immediately; the async LLM tie-break
     tail is enqueued on the process-wide queue and drained in the background.
     """
-    return reconcile_service.run_reconciliation(
+    result = reconcile_service.run_reconciliation(
         db, seed=seed, reload_data=reload_data, tiebreak_queue=_tiebreak_queue
     )
+    bg.add_task(broadcast, "reconcile_complete", {"seed": seed})
+    return result
 
 
 @router.get("/ai-tiebreaks")
