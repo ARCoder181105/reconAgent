@@ -134,6 +134,22 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T
 }
 
+/** Fetch a CSV and trigger a browser download. */
+async function download(path: string, filename: string): Promise<void> {
+  const res = await fetch(`${BASE}${path}`)
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "")
+    throw new Error(`Export failed (${res.status}): ${detail}`)
+  }
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export const api = {
   report: () => request<Report>("/report"),
   matches: (stage?: string, minConf?: number) => {
@@ -173,6 +189,11 @@ export const api = {
     })
   },
   aiTiebreaks: () => request<TiebreaksStatus>("/ai-tiebreaks"),
+  exportMatches: () => download("/export/matches", "reconagent_matches.csv"),
+  exportExceptions: async (status?: string) => {
+    const qs = status ? `?status=${status}` : ""
+    await download(`/export/exceptions${qs}`, "reconagent_exceptions.csv")
+  },
 }
 
 /** Parse the JSON-encoded candidates string stored on an exception row. */

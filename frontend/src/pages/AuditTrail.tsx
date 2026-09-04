@@ -1,5 +1,6 @@
 import { useAudit } from "@/hooks/useAudit"
 import { useLiveSync } from "@/hooks/useLiveSync"
+import { api } from "@/api/client"
 import {
   Table,
   TableBody,
@@ -12,7 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Input } from "@/components/ui/input"
-import { CheckCircle2, AlertTriangle } from "lucide-react"
+import { CheckCircle2, AlertTriangle, Download } from "lucide-react"
 
 const STAGES = ["all", "exact", "fuzzy_utr", "amount_date", "batch_sum", "llm_tiebreak"] as const
 
@@ -71,6 +72,9 @@ export function AuditTrail() {
           />
           <Button size="sm" variant="ghost" onClick={resetFilters}>
             Reset
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => api.exportMatches()}>
+            <Download className="mr-1 h-3.5 w-3.5" /> CSV
           </Button>
         </div>
       </div>

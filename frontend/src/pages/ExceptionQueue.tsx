@@ -1,7 +1,8 @@
 import { useState } from "react"
-import { CheckSquare, ClipboardCheck, PlayCircle, Undo2 } from "lucide-react"
+import { CheckSquare, ClipboardCheck, Download, PlayCircle, Undo2 } from "lucide-react"
 import { toast } from "sonner"
 import {
+  api,
   parseCandidates,
   type ExceptionRecord,
 } from "@/api/client"
@@ -88,7 +89,7 @@ export function ExceptionQueue() {
       </header>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b">
+      <div className="flex items-center gap-1 border-b">
         <TabButton active={tab === "maker"} onClick={() => setTab("maker")}>
           Open queue · Maker
         </TabButton>
@@ -100,6 +101,11 @@ export function ExceptionQueue() {
             </span>
           )}
         </TabButton>
+        <div className="ml-auto">
+          <Button size="sm" variant="outline" onClick={() => api.exportExceptions()}>
+            <Download className="mr-1 h-3.5 w-3.5" /> CSV
+          </Button>
+        </div>
       </div>
 
       {error && (

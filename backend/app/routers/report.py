@@ -1,7 +1,11 @@
-"""Report + matches (audit trail) endpoints."""
+"""Report + matches (audit trail) + CSV export endpoints."""
 from __future__ import annotations
 
+import csv
+import io
+
 from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from backend.constants import EVENT_CHECKER_APPROVED
@@ -149,3 +153,63 @@ def _check_net_ok(s: models.Settlement) -> bool:
     adj = s.adjustments or 0
     expected = s.gross_amount - fees - tax + refunds + adj
     return abs(expected - s.net_amount) <= 1  # ±1 paise tolerance
+
+
+def _csv_response(rows: list[dict], filename: str) -> StreamingResponse:
+    """Stream a list of dicts as a CSV file."""
+    if not rows:
+        buf = io.StringIO()
+        return StreamingResponse(iter([buf.getvalue()]), media_type="text/csv",
+                                 headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+    buf = io.StringIO()
+    writer = csv.DictWriter(buf, fieldnames=rows[0].keys())
+    writer.writeheader()
+    writer.writerows(rows)
+    buf.seek(0)
+    return StreamingResponse(iter([buf.getvalue()]), media_type="text/csv",
+                             headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+
+
+@router.get("/export/matches")
+def export_matches(db: Session = Depends(get_session)):
+    """Download all matches as a CSV file."""
+    matches = db.query(models.Match).order_by(models.Match.match_id).all()
+    settlement_ids = {m.settlement_id for m in matches}
+    settlements = {
+        s.settlement_id: s
+        for s in db.query(models.Settlement).filter(models.Settlement.settlement_id.in_(settlement_ids)).all()
+    }
+    rows = []
+    for m in matches:
+        s = settlements.get(m.settlement_id)
+        rows.append({
+            "match_id": m.match_id,
+            "settlement_id": m.settlement_id,
+            "line_id": m.line_id,
+            "stage": m.stage,
+            "confidence": m.confidence,
+            "net_ok": _check_net_ok(s) if s else True,
+            "resolved_at": m.resolved_at.isoformat() if m.resolved_at else "",
+        })
+    return _csv_response(rows, "reconagent_matches.csv")
+
+
+@router.get("/export/exceptions")
+def export_exceptions(status: str | None = None, db: Session = Depends(get_session)):
+    """Download all exceptions as a CSV file."""
+    q = db.query(models.Exception)
+    if status:
+        q = q.filter(models.Exception.status == status)
+    exceptions = q.order_by(models.Exception.created_at, models.Exception.exception_id).all()
+    rows = []
+    for e in exceptions:
+        rows.append({
+            "exception_id": e.exception_id,
+            "settlement_id": e.settlement_id or "",
+            "line_id": e.line_id or "",
+            "reason_code": e.reason_code,
+            "confidence": e.confidence if e.confidence is not None else "",
+            "status": e.status,
+            "created_at": e.created_at.isoformat() if e.created_at else "",
+        })
+    return _csv_response(rows, "reconagent_exceptions.csv")
