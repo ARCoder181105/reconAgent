@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass, field
+from datetime import date
 
 from backend.constants import (
     CATEGORY_AMBIGUOUS,
@@ -109,7 +110,9 @@ def generate_settlements(cfg: SeedConfig, rng: random.Random | None = None) -> l
     scenarios: list[SettlementScenario] = []
 
     # Deterministic base date; increments by 1 day per record (T+1 cadence).
-    base_day = rng.randint(20000, 20800)  # epoch day ~ 2024-2026
+    # Anchored to a real ~2024-2026 window (date.fromordinal counts from year 1,
+    # so an ordinal must be an absolute date, not a small day-offset).
+    base_day = date(2024, 1, 1).toordinal() + rng.randint(0, 800)
 
     for category, n in counts.items():
         for _ in range(n):
@@ -146,8 +149,6 @@ def generate_settlements(cfg: SeedConfig, rng: random.Random | None = None) -> l
 
 
 def _day_to_iso(epoch_day: int) -> str:
-    from datetime import date
-
     d = date.fromordinal(epoch_day)
     return d.isoformat()
 

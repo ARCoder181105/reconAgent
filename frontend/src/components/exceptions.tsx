@@ -48,9 +48,9 @@ export function formatScore(score: number | null | undefined): string {
 }
 
 /**
- * What to show as a candidate's "evidence" tag. Scored candidates show a
- * confidence percentage; unscored pools (LLM tie-break context, batch-partition
- * participants) carry no confidence, so surface the amount + date instead.
+ * Evidence tag for a candidate. Candidates are settlement hints (amount + date,
+ * or a bare settlement id when the engine could not even date-corroborate them);
+ * none carry a per-candidate score, so always surface what we actually know.
  */
 export function candidateMeta(c: Candidate): string {
   if (c.score != null && !Number.isNaN(c.score) && Number.isFinite(c.score)) {
@@ -60,7 +60,7 @@ export function candidateMeta(c: Candidate): string {
     const date = c.settlement_date ? ` · ${c.settlement_date}` : ""
     return `${formatINR(c.net_amount)}${date}`
   }
-  return "—"
+  return ""
 }
 
 export function CandidatesList({
@@ -76,10 +76,8 @@ export function CandidatesList({
   return (
     <ol className={cn("space-y-1", compact ? "text-xs" : "text-sm")}>
       {candidates.map((c, i) => (
-        <li key={`${c.settlement_id}-${c.line_id}-${i}`} className="flex items-center justify-between gap-3">
-          <code className="font-mono text-xs">
-            {c.settlement_id} <span aria-hidden>→</span> {(c.line_id ?? "—").toString()}
-          </code>
+        <li key={`${c.settlement_id}-${i}`} className="flex items-center justify-between gap-3">
+          <code className="font-mono text-xs">{c.settlement_id}</code>
           <span className="flex items-center gap-2">
             {c.stage ? <BadgeGlue stage={c.stage} /> : null}
             <span className="font-tabular text-muted-foreground">{candidateMeta(c)}</span>
