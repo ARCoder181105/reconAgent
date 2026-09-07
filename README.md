@@ -44,9 +44,17 @@ For a single-seed walkthrough with full per-stage detail, see [Testing Instructi
 
 ## 🖼 Screenshots
 
-> _Add 2–3 screenshots or a short GIF here before submitting: the Exception Queue with a ranked
-> candidate list, the Maker → Checker approval flow, and the Cash Position tile on the Dashboard.
-> A judge skimming for 30 seconds will look at this section before reading a single curl command._
+### 1) Exception Queue with ranked candidate list
+
+![Exception Queue with ranked candidates](docs/assets/screenshots/exception-queue-ranked-candidates.png)
+
+### 2) Maker → Checker approval flow
+
+![Pending approval Checker flow](docs/assets/screenshots/maker-checker-approval-flow.png)
+
+### 3) Dashboard cash position tile
+
+![Dashboard cash position](docs/assets/screenshots/dashboard-cash-position.png)
 
 ---
 
@@ -179,6 +187,30 @@ By default the `ollama` service runs on CPU — this is deliberate, because a ha
 | `frontend` | 5173 | React 19 + TypeScript dashboard — Summary, Exception Queue, Inspection, Audit |
 
 All three services start by default. Ollama pulls the model on first run (cached in volume for subsequent starts).
+
+---
+
+## 🚀 CI/CD, Container Registry, and Release
+
+This repository now includes three GitHub Actions workflows:
+
+- **CI (`.github/workflows/ci.yml`)**  
+  Runs backend tests and frontend lint/build on every pull request and on pushes to `main`.
+- **Container publish (`.github/workflows/container-publish.yml`)**  
+  Builds and pushes backend + frontend Docker images to **GitHub Container Registry (GHCR)** on pushes to `main`, semantic version tags (`v*`), and manual dispatch.
+- **Release (`.github/workflows/release.yml`)**  
+  Creates a GitHub Release from semantic version tags (`vMAJOR.MINOR.PATCH`) and supports manual dispatch with default first version `v1.0.0`.
+
+### GHCR Image Names
+
+The workflows publish the following images (owner is lowercased automatically in CI):
+
+- `ghcr.io/<owner>/reconagent-backend:<tag>`
+- `ghcr.io/<owner>/reconagent-frontend:<tag>`
+
+### First Version Release (`v1.0.0`)
+
+After this PR is merged to `main`, run the **Release** workflow from the Actions tab using `v1.0.0` (default input) to create the first tagged GitHub release.
 
 ---
 
