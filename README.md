@@ -44,9 +44,17 @@ For a single-seed walkthrough with full per-stage detail, see [Testing Instructi
 
 ## 🖼 Screenshots
 
-> _Add 2–3 screenshots or a short GIF here before submitting: the Exception Queue with a ranked
-> candidate list, the Maker → Checker approval flow, and the Cash Position tile on the Dashboard.
-> A judge skimming for 30 seconds will look at this section before reading a single curl command._
+### 1) Exception Queue with ranked candidate list
+
+![Exception Queue with ranked candidates](docs/assets/screenshots/exception-queue-ranked-candidates.png)
+
+### 2) Maker → Checker approval flow
+
+![Pending approval Checker flow](docs/assets/screenshots/maker-checker-approval-flow.png)
+
+### 3) Dashboard cash position tile
+
+![Dashboard cash position](docs/assets/screenshots/dashboard-cash-position.png)
 
 ---
 
