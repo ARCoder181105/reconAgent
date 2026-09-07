@@ -182,6 +182,30 @@ All three services start by default. Ollama pulls the model on first run (cached
 
 ---
 
+## 🚀 CI/CD, Container Registry, and Release
+
+This repository now includes three GitHub Actions workflows:
+
+- **CI (`.github/workflows/ci.yml`)**  
+  Runs backend tests and frontend lint/build on every pull request and on pushes to `main`.
+- **Container publish (`.github/workflows/container-publish.yml`)**  
+  Builds and pushes backend + frontend Docker images to **GitHub Container Registry (GHCR)** on pushes to `main`, semantic version tags (`v*`), and manual dispatch.
+- **Release (`.github/workflows/release.yml`)**  
+  Creates a GitHub Release from semantic version tags (`vMAJOR.MINOR.PATCH`) and supports manual dispatch with default first version `v1.0.0`.
+
+### GHCR Image Names
+
+The workflows publish the following images (owner is lowercased automatically in CI):
+
+- `ghcr.io/<owner>/reconagent-backend:<tag>`
+- `ghcr.io/<owner>/reconagent-frontend:<tag>`
+
+### First Version Release (`v1.0.0`)
+
+After this PR is merged to `main`, run the **Release** workflow from the Actions tab using `v1.0.0` (default input) to create the first tagged GitHub release.
+
+---
+
 ## 🧪 Testing Instructions for Evaluators
 
 ### 1. Health Checks
